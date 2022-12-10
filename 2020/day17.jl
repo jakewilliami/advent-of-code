@@ -1,3 +1,5 @@
+using AdventOfCode.Multidimensional
+
 const testfile = "inputs/test17.txt"
 const datafile = "inputs/data17.txt"
 
@@ -26,8 +28,7 @@ function promote_to_nD(M::AbstractArray{T, N}, n::Integer, fill_elem::T) where {
 end
 
 function solve(iterations::Int, layout::Array{Char, N}) where N
-    origin = ntuple(_ -> 0, N)
-    direction_multipliers = (CartesianIndex(i) for i in Iterators.product((-1:1 for _ in 1:N)...) if i != origin)
+    direction_multipliers = cartesian_directions(N)
 
     for _ in 1:iterations
         # expand array
@@ -45,7 +46,7 @@ function solve(iterations::Int, layout::Array{Char, N}) where N
             n_active = 0
             for j in direction_multipliers
                 k = i + j
-                a = checkbounds(Bool, layout_clone, k) ? layout_clone[k] : INACTIVE
+                a = hasindex(layout_clone, k) ? layout_clone[k] : INACTIVE
                 if a == ACTIVE
                     n_active += 1
                 end

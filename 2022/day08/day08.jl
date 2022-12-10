@@ -1,40 +1,13 @@
+using AdventOfCode.Multidimensional
+
 # Parse input
 
 parse_input(f::String) =
     reduce(vcat, permutedims(parse.(Int, collect(s))) for s in readlines(f))
 
 
-# Indexing stuff
-
-function tryindex(M::Matrix{T}, i::CartesianIndex{N}) where {T, N}
-    try
-        return getindex(M, i)
-    catch
-        return nothing
-    end
-end
-tryindices(M::Matrix{T}, is::CartesianIndex{N}...) where {T, N} =
-    Union{T, Nothing}[tryindex(M, i) for i in is]
-
-# Get a list of cartesian direction modifiers
-function cartesian_directions(dim::Int; exclude_diag::Bool = true)
-    T = Int
-    𝟎 = ntuple(_ -> zero(T), dim)
-    dir_itr = Base.Iterators.product([-one(T):one(T) for i in one(T):dim]...)
-
-    # The sum of the absolute values of the elements in a diagonal coordinate
-    # is always equal to the number of dimensions because, in a diagonal coordinate,
-    # all the elements have a value of either 1 or -1
-    fltr(t) = exclude_diag ? sum(abs.(t)) != dim : true
-
-    return CartesianIndex{dim}[CartesianIndex(t) for t in dir_itr if t ≠ 𝟎 && fltr(t)]
-end
-
 # Increment an index further away from the origin, e.g., (1, -3) -> (2, -4)
-_move_further_from_origin(t::NTuple{N, T}) where {N, T} =
-    @. (abs(t) + 1) * sign(t)
-_move_further_from_origin(i::CartesianIndex{N}) where {N} =
-    CartesianIndex(_move_further_from_origin(i.I))
+_move_further_from_origin(i::CartesianIndex{N}) where {N} = i + direction(i)
 
 # Construct a map of lists of values in the given matrix at each direction away from a specified index
 function global_adjacencies(M::Matrix{T}, i::CartesianIndex{N}, direction_modifiers) where {T, N}
@@ -47,12 +20,13 @@ function global_adjacencies(M::Matrix{T}, i::CartesianIndex{N}, direction_modifi
         while true
             j += directional_shift
 
-            if isnothing(tryindex(M, j))
+            v = tryindex(M, j)
+            if isnothing(v)
                 dᵢ += 1
                 break
             end
 
-            push!(D[DIRECTIONS[dᵢ]], M[j])
+            push!(D[DIRECTIONS[dᵢ]], v)
         end
     end
 
@@ -99,7 +73,7 @@ end
 
 # Main
 
-const DIRECTIONS = cartesian_directions(2)
+const DIRECTIONS = cardinal_directions(2)
 
 function main()
     data = parse_input("data08.txt")

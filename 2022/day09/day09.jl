@@ -1,31 +1,9 @@
-# Indexing stuff
-
-# Get a list of cartesian direction modifiers
-# Copied from yesterday's solution, which was adapted from day 11, 2020
-function cartesian_directions(dim::Int; exclude_diag::Bool = true)
-    T = Int
-    𝟎 = ntuple(_ -> zero(T), dim)
-    dir_itr = Base.Iterators.product([-one(T):one(T) for i in one(T):dim]...)
-
-    # The sum of the absolute values of the elements in a diagonal coordinate
-    # is always equal to the number of dimensions because, in a diagonal coordinate,
-    # all the elements have a value of either 1 or -1
-    fltr(t) = exclude_diag ? sum(abs.(t)) != dim : true
-
-    return CartesianIndex{dim}[CartesianIndex(t) for t in dir_itr if t ≠ 𝟎 && fltr(t)]
-end
-
-const ALL_DIRECTIONS = cartesian_directions(2, exclude_diag = false)
-
-are_adjacent(i::CartesianIndex{N}, j::CartesianIndex{N}) where {N} =
-    i == j || any(d + j == i || d + i == j for d in ALL_DIRECTIONS)
-
-direction(i::CartesianIndex{N}) where {N} = CartesianIndex(sign.(i.I))
+using AdventOfCode.Multidimensional
 
 
 # Parse Input
 
-const DIRECTIONS = cartesian_directions(2)
+const DIRECTIONS = cardinal_directions(2)
 
 @enum Direction left=1 up down right
 
@@ -65,7 +43,7 @@ function part1(instructions::Vector{Instruction})
     for instruction in instructions
         for _ in 1:instruction.n
             hi += direction_modifier(instruction.direction)
-            if !are_adjacent(hi, ti)
+            if !areadjacent(hi, ti)
                 ti = adjust_tail(ti, hi)
             end
             push!(s, ti)
@@ -86,7 +64,7 @@ function part2(instructions::Vector{Instruction})
         for _ in 1:instruction.n
             tis[1] += direction_modifier(instruction.direction)
             for j in 2:length(tis)
-                if !are_adjacent(tis[j - 1], tis[j])
+                if !areadjacent(tis[j - 1], tis[j])
                     tis[j] = adjust_tail(tis[j], tis[j - 1])
                 end
             end

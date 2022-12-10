@@ -1,24 +1,18 @@
+using AdventOfCode.Multidimensional
+
 const datafile = joinpath(@__DIR__, "inputs", "data11.txt")
 
-n_adjacencies(dim::Int) = 3^dim - 1
+tryindices(M::Matrix{T}, inds::NTuple{N, Int}...) where {T, N} =
+    Union{T, Nothing}[tryindex(M, CartesianIndex(i)) for i in inds]
 
-function tryindex(M::Matrix{T}, inds::NTuple{N, Int}...) where {T, N}
-    indices = Vector{Union{T, Nothing}}()
-
-    for idx in inds
-        try
-            push!(indices, getindex(M, idx...))
-        catch
-            push!(indices, nothing)
-        end
-    end
-
-    return indices
-end
+get_adjacencies(M::Matrix{T}, inds::CartesianIndex{N}...) where {T, N} =
+    T[M[i] for i in inds if hasindex(M, i)]
 
 function adjacencies(M::Matrix{T}, idx::NTuple{N, Int}) where {T, N}
-    𝟎 = ntuple(_ -> zero(Int), N)
-    return T[k for k in tryindex(M, NTuple{N, Int}[idx .+ j for j in NTuple{N, Int}[t for t in Base.Iterators.product([-one(Int):one(Int) for i in one(Int):N]...)] if j ≠ 𝟎]...) if ! isnothing(k)]
+    D = cartesian_directions(N)
+    i = CartesianIndex(idx)
+    A = CartesianIndex{N}[i + d for d in D]
+    return T[k for k in get_adjacencies(M, A...)]
 end
 
 function n_adjacent_to(M::Matrix{T}, idx::NTuple{2, Int}, adj_elem::T) where T
@@ -85,32 +79,33 @@ BenchmarkTools.Trial:
 
 function global_adjacencies(M::Matrix{T}, idx::NTuple{N, Int}, adj_elem::T) where {T, N}
     no_seat, empty_seat, occupied_seat = '.', 'L', '#'
-    adjacent_indices, 𝟎 = Vector{NTuple{N, Int}}(), ntuple(_ -> zero(Int), N)
-    directional_shifts = NTuple{N, Int}[i for i in NTuple{N, Int}[t for t in Base.Iterators.product([-one(Int):one(Int) for i in one(Int):N]...)] if i ≠ 𝟎]
+    adjacent_indices, 𝟎 = Vector{CartesianIndex{N}}(), 𝟘(N)
+    directional_shifts = cartesian_directions(N)
     n_adjacent, adjacent_count = n_adjacencies(ndims(M)), 0
+    i = CartesianIndex(idx)
 
     while adjacent_count < n_adjacent
         for directional_shift in directional_shifts
+            adj_index = i + directional_shift
             while true
-                adj_index = idx .+ directional_shift
 
-                if nothing ∈ tryindex(M, adj_index)
+                if !hasindex(M, adj_index)
                     n_adjacent -= 1
                     break
                 end
 
-                if M[adj_index...] ≠ adj_elem
+                if M[adj_index] ≠ adj_elem
                     adjacent_count += 1
                     push!(adjacent_indices, adj_index)
                     break
                 else
-                    directional_shift = (abs.(directional_shift) .+ 1) .* sign.(directional_shift)
+                    adj_index += directional_shift
                 end
             end
         end
     end
 
-    return T[M[i...] for i in adjacent_indices]
+    return T[M[i] for i in adjacent_indices]
 end
 
 function global_n_adjacent_to(M::Matrix{T}, idx::NTuple{N, Int}, ignored_elem::T, adj_elem::T) where {T, N}
