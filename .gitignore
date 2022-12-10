@@ -1,3 +1,8 @@
+# Input files
+input.txt
+data*.txt
+data*.csv
+
 # Created by https://www.toptal.com/developers/gitignore/api/Julia,Rust,Python,Haskell,Shell,Nim,﻿﻿C,Go,Ring,Zig,Lisp
 # Edit at https://www.toptal.com/developers/gitignore?templates=Julia,Rust,Python,Haskell,Shell,Nim,﻿﻿C,Go,Ring,Zig,Lisp
 
