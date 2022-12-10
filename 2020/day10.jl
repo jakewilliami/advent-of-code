@@ -5,7 +5,7 @@ load_file(datafile::String) = parse.(Int, readlines(datafile))
 function get_adaptors_and_differences(joltages::Vector{Int})
     chosen_adaptors = Matrix{Int}(undef, 0, 2)
     builtin, current_adaptor = maximum(joltages) + 3, 0
-    
+
     while true
         current_options = filter(e -> e ≤ current_adaptor + 3, joltages)
         new_adaptor = minimum(current_options)
@@ -13,10 +13,10 @@ function get_adaptors_and_differences(joltages::Vector{Int})
         current_adaptor = new_adaptor
         deleteat!(joltages, findfirst(e -> e == current_adaptor, joltages))
         chosen_adaptors = cat(chosen_adaptors, [new_adaptor difference], dims = 1)
-        
+
         if current_adaptor == builtin - 3
             chosen_adaptors = cat(chosen_adaptors, [builtin 3], dims = 1)
-            
+
             return chosen_adaptors
         end
     end
@@ -27,7 +27,9 @@ function count_adaptor_differences(datafile::String)
     return Tuple(count(==(i), differences) for i in unique(differences))
 end
 
-println(prod(count_adaptor_differences(datafile)))
+res1 = prod(count_adaptor_differences(datafile))
+@assert res1 == 2244
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -106,7 +108,9 @@ function count_adaptor_permutations(datafile::String)
     return count_adaptor_permutations(joltages)
 end
 
-println(count_adaptor_permutations(datafile))
+res2 = count_adaptor_permutations(datafile)
+@assert res2 == 3947645370368
+println(res2)
 
 #=
 2244
@@ -138,7 +142,7 @@ function count_adaptor_permutations(xs::Vector{Int})
     return dp[end]
 end
 
-using BenchmarkTools
+#=using BenchmarkTools
 xs = load_file(datafile)
 res1 = @btime count_adaptor_permutations(xs)
 println(res1)
@@ -146,4 +150,4 @@ sort!(xs)
 insert!(xs, 1, 0)
 push!(xs, xs[end] + 3)
 res2 = @btime main(xs)
-println(res2)
+println(res2)=#

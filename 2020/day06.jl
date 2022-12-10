@@ -1,4 +1,4 @@
-const datafile = joinpath(@__DIR__, "inputs", "data6.txt")
+const datafile = joinpath(@__DIR__, "inputs", "data06.txt")
 
 function flattenall(A::AbstractArray)
     while any(x -> typeof(x) <: AbstractArray, A)
@@ -12,25 +12,27 @@ deepunique(A::AbstractArray) = unique(flattenall(A))
 
 function count_yes(datafile::String)
     data = Vector{Int}()
-    
+
     open(datafile) do io
         while ! eof(io)
             buffer = Vector{Vector{Char}}()
             line = readline(io)
-            
+
             while ! isempty(line)
                 push!(buffer, collect(line))
                 line = readline(io)
             end
-            
+
             push!(data, length(deepunique(buffer)))
         end
     end
-    
+
     return sum(data)
 end
 
-println(count_yes(datafile))
+res1 = count_yes(datafile)
+@assert res1 == 6683
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -66,7 +68,9 @@ function count_unanimous(datafile::String)
     return sum(data)
 end
 
-println(count_unanimous(datafile))
+res2 = count_unanimous(datafile)
+@assert res2 == 3122
+println(res2)
 
 #=
 BenchmarkTools.Trial:

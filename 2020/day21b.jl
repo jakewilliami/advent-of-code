@@ -19,7 +19,7 @@ function parse_input(filename::String)
             ingredients = split(ingredients_str, isspace)
             allergens = split(allergens_str, ", ")
             foods[i] = Food(Set(ingredients), Set(allergens))
-        end        
+        end
     end
     return foods
 end
@@ -39,12 +39,12 @@ end
 
 # Create a list of allergen => candidate ingredients
 function create_work_list(foods::Vector{Food})
-    return Dict{String, Set{String}}(a => candidate_ingredients(foods, a) 
+    return Dict{String, Set{String}}(a => candidate_ingredients(foods, a)
         for a in all_allergens(foods))
 end
 
 # Resovle the work list.
-# If an allergen is mapped to exactly one ingredient, then 
+# If an allergen is mapped to exactly one ingredient, then
 # it's resolved. Then, remove this ingredient from the work
 # list. Repeat until all alergens are resolved.
 function resolve(work_list::Dict{String, Set{String}})
@@ -95,5 +95,10 @@ function part2(input_file::String)
     return join([mapped[k] for k in sort(collect(keys(mapped)))], ",")
 end
 
-println(part1("inputs/data21.txt"))
-println(part2("inputs/data21.txt"))
+res1 = part1("inputs/data21.txt")
+@assert res1 == 2262
+println(res1)
+
+res2 = part2("inputs/data21.txt")
+@assert res2 == "cxsvdm,glf,rsbxb,xbnmzr,txdmlzd,vlblq,mtnh,mptbpz"
+println(res2)

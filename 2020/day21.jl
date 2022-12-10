@@ -19,7 +19,7 @@ function parse_input(filename::String)
             ingredients = split(ingredients_str, isspace)
             allergens = split(allergens_str, ", ")
             foods[i] = Food(ingredients, allergens)
-        end        
+        end
     end
     return foods
 end
@@ -59,7 +59,7 @@ function solve_allergens(foods::Vector{Food})
             end
         end
     end
-    
+
     while !isempty(unsolved)
         still_unsolved = Dict{String, Vector{String}}() # allergen, possible_ingredients
         for (unsolved_allergen, unsolved_ingredients) in unsolved
@@ -132,7 +132,7 @@ function count_safe_ingredients(solved_allergens::Dict{String, String}, foods::V
     return sum(count(∈(safe_ingredients), food.ingredients) for food in foods)
     return safe_ingredients_count
 end
-count_safe_ingredients(foods::Vector{Food}) = 
+count_safe_ingredients(foods::Vector{Food}) =
     count_safe_ingredients(solve_allergens(foods), foods)
 
 function part1(input_file::String)
@@ -140,16 +140,15 @@ function part1(input_file::String)
     count_safe_ingredients(foods)
 end
 
-println(part1("inputs/data21.txt"))
-# @assert(part1("inputs/test21.txt") == 5")
-# @assert(part1("inputs/data21.txt") < 2295)
-# @assert(part1("inputs/data21.txt") > 233)
-# @assert(part1("inputs/data21.txt") == 2262)
+@assert(part1("inputs/test21.txt") == 5)
+res1 = part1("inputs/data21.txt")
+@assert res1 == 2295
+println(res1)
 
 ### Part 2
 
 function part2(input_file::String)
-    error("not implemented")
+    error("part 2 not implemented yet")
 end
 
 
@@ -157,3 +156,6 @@ end
 input_file = "inputs/test21.txt"
 # println(part1(input_file))
 # println(part2(input_file))
+res2 = part2("inputs/data21.txt")
+@assert res2 == "cxsvdm,glf,rsbxb,xbnmzr,txdmlzd,vlblq,mtnh,mptbpz"
+println(res2)

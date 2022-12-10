@@ -16,7 +16,7 @@ function apply_mask(mem::Int, mask::AbstractString)
     A, mask = collect(bitstring(mem)[(end - 35):end]), collect(mask)
     i = findunchanged(mask)
     A[i] .= mask[i]
-    
+
     return parse(Int, join(A), base = 2)
 end
 
@@ -26,7 +26,7 @@ function sum_masked_values(datafile::String)
     open(datafile) do io
         while ! eof(io)
             identifier, value = split(readline(io), " = ")
-            
+
             if identifier == "mask"
                 mask = value
             else
@@ -36,11 +36,13 @@ function sum_masked_values(datafile::String)
             end
         end
     end
-    
+
     return sum(values(out))
 end
 
-println(sum_masked_values(datafile))
+res1 = sum_masked_values(datafile)
+@assert res1 == 17481577045893
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -123,7 +125,9 @@ function sum_values_remaining(datafile::String)
     return sum(values(out))
 end
 
-println(sum_values_remaining(datafile))
+res2 = sum_values_remaining(datafile)
+@assert res2 == 4160009892257
+println(res2)
 
 #=
 BenchmarkTools.Trial:

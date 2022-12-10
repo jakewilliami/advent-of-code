@@ -31,9 +31,9 @@ function parse_file(file_path::String)
         end
         push!(players, Player(id, deck))
     end
-    
+
     @assert(length(players) == 2, "We expect only two players")
-    
+
     return players
 end
 
@@ -75,15 +75,18 @@ function part1(input_file::String)
     return play_combat_game!(player1, player2)
 end
 
-@assert(part1("inputs/test22.txt") == 306)
-@assert(part1("inputs/data22.txt") == 31957)
+@assert part1("inputs/test22.txt") == 306
+res1 = part1("inputs/data22.txt")
+@assert res1 == 31957
+println(res1)
+
 
 ### Part 2
 
 function play_recursive_combat_game!(player1::Player, player2::Player)
     local winning_player::Player
     previous_rounds = Set{UInt64}()
-    
+
     while !isempty(player1.deck) && !isempty(player2.deck)
         game_state = hash((player1.deck, player2.deck))
         if game_state ∈ previous_rounds
@@ -92,9 +95,9 @@ function play_recursive_combat_game!(player1::Player, player2::Player)
         else
             push!(previous_rounds, game_state)
         end
-        
+
         card1, card2 = draw_card!(player1), draw_card!(player2)
-        
+
         if length(player1.deck) >= card1 && length(player2.deck) >= card2
             recursive_player1 = Player(player1.id, player1.deck[1:card1])
             recursive_player2 = Player(player2.id, player2.deck[1:card2])
@@ -108,7 +111,7 @@ function play_recursive_combat_game!(player1::Player, player2::Player)
                 error("(hopefully) unreachable (draw in round)")
             end
         end
-        
+
         if winning_player.id == 1
             push!(player1.deck, card1, card2)
             winning_player = player1
@@ -119,7 +122,7 @@ function play_recursive_combat_game!(player1::Player, player2::Player)
             error("unreachable")
         end
     end
-    
+
     return winning_player
 end
 
@@ -130,8 +133,6 @@ function part2(input_file::String)
     return sum(c * (ncards - i + 1) for (i, c) in enumerate(winning_player.deck))
 end
 
-### Main
-
-println(part1("inputs/data22.txt"))
-println(part2("inputs/data22.txt"))
-
+res2 = part2("inputs/data22.txt")
+@assert res2 == 33212
+println(res2)

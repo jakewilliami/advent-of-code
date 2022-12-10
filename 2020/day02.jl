@@ -1,6 +1,6 @@
 using DataFrames, DelimitedFiles
 
-const datafile = joinpath(@__DIR__, "inputs", "data2.csv")
+const datafile = joinpath(@__DIR__, "inputs", "data02.csv")
 
 # clean data
 function clean_data(raw_data::DataFrame)
@@ -18,10 +18,10 @@ end
 # get valid count
 function count_valid(data::DataFrame)
     i = 0
-    
+
     for row in eachrow(data)
         letter_count = count(x -> x == row.letter, row.password)
-        
+
         if row.num1 ≤ letter_count ≤ row.num2
             i += 1
         end
@@ -30,7 +30,9 @@ function count_valid(data::DataFrame)
     return i
 end
 
-println(count_valid(clean_data(rename!(DataFrame(readdlm(datafile, ':')), [:restrictions, :password]))))
+res1 = count_valid(clean_data(rename!(DataFrame(readdlm(datafile, ':'), :auto), [:restrictions, :password])))
+@assert res1 == 393
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -58,7 +60,9 @@ function count_valid_corrected(data::DataFrame)
     return i
 end
 
-println(count_valid_corrected(clean_data(rename!(DataFrame(readdlm(datafile, ':')), [:restrictions, :password]))))
+res2 = count_valid_corrected(clean_data(rename!(DataFrame(readdlm(datafile, ':'), :auto), [:restrictions, :password])))
+@assert res2 == 690
+println(res2)
 
 #=
 BenchmarkTools.Trial:

@@ -1,4 +1,4 @@
-const datafile = joinpath(@__DIR__, "inputs", "data3.txt")
+const datafile = joinpath(@__DIR__, "inputs", "data03.txt")
 
 function trees_encountered(data_path::String, vertical_component::Int, horizontal_component::Int)
     tree_counter, col_counter, row_counter = 0, 1, 1
@@ -14,16 +14,18 @@ function trees_encountered(data_path::String, vertical_component::Int, horizonta
             data[row_counter:end] = data[row_counter:end].^2
             current_row = data[row_counter]
         end
-        
+
         if current_row[col_counter] == '#'
             tree_counter += 1
         end
     end
-    
+
     return tree_counter
 end
 
-println(trees_encountered(datafile, 1, 3))
+res1 = trees_encountered(datafile, 1, 3)
+@assert res1 == 198
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -39,7 +41,9 @@ BenchmarkTools.Trial:
   evals/sample:     1
 =#
 
-println(prod(trees_encountered(datafile, i, j) for (i, j) in [(1, 1), (1, 3), (1, 5), (1, 7), (2, 1)]))
+res2 = prod(trees_encountered(datafile, i, j) for (i, j) in [(1, 1), (1, 3), (1, 5), (1, 7), (2, 1)])
+@assert res2 == 5140884672
+println(res2)
 
 #=
 BenchmarkTools.Trial:

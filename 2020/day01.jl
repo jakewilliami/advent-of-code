@@ -1,6 +1,6 @@
 using CSV, DataFrames
 
-const datafile = joinpath(@__DIR__, "inputs", "data1.csv")
+const datafile = joinpath(@__DIR__, "inputs", "data01.csv")
 
 function naive2(df)
     for i in eachrow(df)
@@ -12,7 +12,11 @@ function naive2(df)
     end
 end
 
-println(naive2(CSV.read(datafile, DataFrame)))
+
+
+res1 = naive2(CSV.read(datafile, DataFrame))
+@assert res1 == (833, 1187, 988771)
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -40,7 +44,9 @@ function naive3(df)
     end
 end
 
-println(naive3(CSV.read(datafile, DataFrame)))
+res2 = naive3(CSV.read(datafile, DataFrame))
+@assert res2 == (1237, 511, 272, 171933104)
+println(res2)
 
 #=
 BenchmarkTools.Trial:

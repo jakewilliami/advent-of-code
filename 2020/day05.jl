@@ -1,40 +1,40 @@
-const datafile = joinpath(@__DIR__, "inputs", "data5.txt")
+const datafile = joinpath(@__DIR__, "inputs", "data05.txt")
 
 function bisect(x::UnitRange{T}) where T <: Integer
     lower, upper = getfield(x, :start), getfield(x, :stop)
     mid = lower + div(upper - lower, 2)
-    
+
     return lower:mid, (mid + 1):upper
 end
 
 function find_number(str::String, lower::Int, upper::Int, str_lower::Int, str_upper::Int)
     current_range = lower:upper
-    
+
     for i in str_lower:str_upper
         instruction = getindex(str, i)
         bottom, top = bisect(current_range)
-    
+
         if instruction == 'F' || instruction == 'L' # F and L means to take the lower half
             upper = getfield(bottom, :stop)
         elseif instruction == 'B' || instruction == 'R' # B and R means to take the upper half
             lower = getfield(top, :start)
         end
-    
+
         current_range = lower:upper
     end
-    
+
     return getfield(current_range, :start)
 end
 
 function get_values(datafile::String, lower::Int, upper::Int, str_lower::Int, str_upper::Int)
     data = Vector{Int}()
-    
+
     open(datafile) do io
         while ! eof(io)
             line = readline(io)
             push!(data, find_number(line, lower, upper, str_lower, str_upper))
         end
-        
+
         return data
     end
 end
@@ -55,11 +55,13 @@ end
 
 function get_seat_ids(data::Vector{T}) where T <: AbstractString
     rows, seats = get_rows(data), get_seats(data)
-    
+
     return rows .* 8 .+ seats
 end
 
-println(maximum(get_seat_ids(readlines(datafile))))
+res1 = maximum(get_seat_ids(readlines(datafile)))
+@assert res1 == 848
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -81,11 +83,13 @@ end
 
 function find_my_seat(data::Vector{T}) where T <: AbstractString
     seat_ids = get_seat_ids(data)
-    
+
     return findfirst(seat -> seat ∉ seat_ids && all(i -> i ∈ seat_ids, seat ± 1), 0:maximum(seat_ids))
 end
 
-println(find_my_seat(readlines(datafile)))
+res2 = find_my_seat(readlines(datafile))
+@assert res2 == 683
+println(res2)
 
 #=
 BenchmarkTools.Trial:

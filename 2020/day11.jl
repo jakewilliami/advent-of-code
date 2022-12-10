@@ -4,7 +4,7 @@ n_adjacencies(dim::Int) = 3^dim - 1
 
 function tryindex(M::Matrix{T}, inds::NTuple{N, Int}...) where {T, N}
     indices = Vector{Union{T, Nothing}}()
-    
+
     for idx in inds
         try
             push!(indices, getindex(M, idx...))
@@ -12,7 +12,7 @@ function tryindex(M::Matrix{T}, inds::NTuple{N, Int}...) where {T, N}
             push!(indices, nothing)
         end
     end
-    
+
     return indices
 end
 
@@ -29,24 +29,24 @@ function mutate_seats!(seat_layout::Vector{String})
     no_seat, empty_seat, occupied_seat = '.', 'L', '#'
     seat_layout = reduce(vcat, permutedims(collect(s)) for s in seat_layout)
     seat_layout_clone = copy(seat_layout)
-    
+
     for row_idx in axes(seat_layout_clone, 1)
         row = seat_layout_clone[row_idx, :]
         original_row = copy(row)
-        
+
         for seat_idx in axes(seat_layout_clone, 2)
             seat = original_row[seat_idx]
-            
+
             if seat == empty_seat && all(s -> s ≠ occupied_seat, adjacencies(seat_layout_clone, (row_idx, seat_idx)))
                 row[seat_idx] = occupied_seat
             elseif seat == occupied_seat && n_adjacent_to(seat_layout_clone, (row_idx, seat_idx), occupied_seat) ≥ 4
                 row[seat_idx] = empty_seat
             end
         end
-            
+
         seat_layout[row_idx, :] = row
     end
-    
+
     return String[join(i) for i in eachrow(seat_layout)]
 end
 
@@ -54,7 +54,7 @@ function stabilise_chaos(seat_layout::Vector{String}, mutating_funct::Function)
     while true
         old_seat_layout = copy(seat_layout)
         seat_layout = mutating_funct(seat_layout)
-            
+
         if old_seat_layout == seat_layout
             return seat_layout
         end
@@ -65,7 +65,9 @@ function Base.count(count_by::Char, seat_layout::Vector{String}, mutating_funct:
     return count(==(count_by), reduce(vcat, permutedims(collect(s)) for s in stabilise_chaos(seat_layout, mutating_funct)))
 end
 
-println(count('#', readlines(datafile), mutate_seats!))
+res1 = count('#', readlines(datafile), mutate_seats!)
+@assert res1 == 2321
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -140,7 +142,9 @@ function mutate_seats_again!(seat_layout::Vector{String})
     return String[join(i) for i in eachrow(seat_layout)]
 end
 
-println(count('#', readlines(datafile), mutate_seats_again!))
+res2 = count('#', readlines(datafile), mutate_seats_again!)
+@assert res2 == 2102
+println(res2)
 
 #=
 BenchmarkTools.Trial:

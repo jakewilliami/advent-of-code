@@ -154,7 +154,8 @@ partn(path::String, precedence_table::Dict{Operator, Int}) = partn(readlines(pat
 
 ### Part one
 
-part1(input::Union{String, Vector{String}}) = partn(input, Dict{Operator, Int}(op => 1 for op in instances(Operator))) # part one has precedence left -> right
+const PRECEDENCE_TABLE_P1 = Dict{Operator, Int}(op => 1 for op in instances(Operator))
+part1(input::Union{String, Vector{String}}) = partn(input, PRECEDENCE_TABLE_P1) # part one has precedence left -> right
 
 @assert(evaluate("1 + 2 * 3 + 4 * 5 + 6", PRECEDENCE_TABLE_P1) == 71)
 @assert(evaluate("1 + (2 * 3) + (4 * (5 + 6))", PRECEDENCE_TABLE_P1) == 51)
@@ -163,7 +164,9 @@ part1(input::Union{String, Vector{String}}) = partn(input, Dict{Operator, Int}(o
 @assert(evaluate("5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))", PRECEDENCE_TABLE_P1) == 12240)
 @assert(evaluate("((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2", PRECEDENCE_TABLE_P1) == 13632)
 
-println(part1(datafile))
+res1 = part1(datafile)
+@assert res1 == 25190263477788
+println(res1)
 
 #=
 julia> @benchmark part1(input)
@@ -196,7 +199,9 @@ part2(input::Union{String, Vector{String}}) = partn(input, PRECEDENCE_TABLE_P2)
 @assert(evaluate("5 * 9 * (7 * 3 * 3 + 9 * 3 + (8 + 6 * 4))", PRECEDENCE_TABLE_P2) == 669060)
 @assert(evaluate("((2 + 4 * 9) * (6 + 9 * 8 + 6) + 6) + 2 + 4 * 2", PRECEDENCE_TABLE_P2) == 23340)
 
-println(part2(datafile))
+res2 = part2(datafile)
+@assert res2 == 297139939002972
+println(res2)
 
 #=
 julia> @benchmark part2(input)

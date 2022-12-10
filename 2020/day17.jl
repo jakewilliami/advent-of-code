@@ -1,5 +1,5 @@
 const testfile = "inputs/test17.txt"
-const datafile = "inputs/data17.jl"
+const datafile = "inputs/data17.txt"
 
 ACTIVE, INACTIVE = '#', '.'
 
@@ -16,30 +16,30 @@ end
 function promote_to_nD(M::AbstractArray{T, N}, n::Integer, fill_elem::T) where {T, N}
     ndims(M) == n && return M
     n < ndims(M) && throw(error("Cannot reduce the number of dimensions this array has.  See `resize`."))
-    
+
     for d in (ndims(M) + 1):n
         M = append_n_times(M, 1, fill_elem, dims = d)
         M = append_n_times_backwards(M, 1, fill_elem, dims = d)
     end
-    
+
     return M
 end
 
 function solve(iterations::Int, layout::Array{Char, N}) where N
     origin = ntuple(_ -> 0, N)
     direction_multipliers = (CartesianIndex(i) for i in Iterators.product((-1:1 for _ in 1:N)...) if i != origin)
-    
+
     for _ in 1:iterations
         # expand array
         for i in 1:N
             layout = append_n_times(layout, 1, INACTIVE, dims = i)
             layout = append_n_times_backwards(layout, 1, INACTIVE, dims = i)
         end
-        
+
         # As we need to change all cubes simultaneously, we
         # must make a copy and use as reference
         layout_clone = copy(layout)
-        
+
         for i in CartesianIndices(layout_clone)
             # count number of active, adjacent cells
             n_active = 0
@@ -50,7 +50,7 @@ function solve(iterations::Int, layout::Array{Char, N}) where N
                     n_active += 1
                 end
             end
-            
+
             # update the cube
             cube = layout_clone[i]
             if cube == ACTIVE
@@ -66,7 +66,7 @@ function solve(iterations::Int, layout::Array{Char, N}) where N
             end
         end
     end
-    
+
     return layout
 end
 
@@ -77,7 +77,9 @@ part1(iterations::Int, datafile::String) =
 
 @assert part1(6, testfile) == 112
 @info "Running algorithm on puzzle input for part 1"
-@assert part1(6, datafile) == 401
+res1 = part1(6, datafile)
+@assert res1 == 401
+println(res1)
 
 #=
 julia> @benchmark part1(6, "inputs/data17.txt")
@@ -107,9 +109,11 @@ part2(iterations::Int, layout::Vector{String}) =
 part2(iterations::Int, datafile::String) =
     part2(6, readlines(datafile))
 
-@assert part2(6, "inputs/test.txt") == 848
+@assert part2(6, testfile) == 848
 @info "Running algorithm on puzzle input for part 2"
-@assert part2(6, "inputs/data17.txt") == 2224
+res2 = part2(6, datafile)
+@assert res2 == 2224
+println(res2)
 
 #=
 julia> @benchmark part2(6, "inputs/data17.txt")

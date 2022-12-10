@@ -1,4 +1,4 @@
-const datafile = joinpath(@__DIR__, "inputs", "data4.txt")
+const datafile = joinpath(@__DIR__, "inputs", "data04.txt")
 
 abstract type AbstractPassport end
 
@@ -11,7 +11,7 @@ mutable struct Passport <: AbstractPassport
     ecl::Union{String, Nothing}
     pid::Union{String, Nothing}
     cid::Union{String, Nothing}
-    
+
     # initialising passport
     function Passport()
         byr, iyr, eyr, hgt, hcl, ecl, pid, cid =
@@ -23,7 +23,7 @@ end
 function parse_data(datafile::String)
     passports = Vector{Passport}()
     input = readlines(datafile)
-    
+
     line_counter = 1
     passport = Passport()
     for line in input
@@ -33,21 +33,21 @@ function parse_data(datafile::String)
             passport = Passport()
             continue
         end
-    
+
         split_line = split(line, r"[ :]")
         for i in 1:length(split_line)
             if isodd(i)
                 setfield!(passport, Symbol(split_line[i]), string(split_line[i + 1]))
             end
         end
-        
+
         if length(input) == line_counter
             push!(passports, passport)
         end
-        
+
         line_counter += 1
     end
-    
+
     return passports
 end
 
@@ -56,12 +56,12 @@ function validate_passport(p::T) where T <: AbstractPassport
         if f == :cid && isnothing(getfield(p, f))
             continue
         end
-        
+
         if isnothing(getfield(p, f))
             return false
         end
     end
-    
+
     return true
 end
 
@@ -69,7 +69,9 @@ function count_valid_ish_passports(passports::Vector{T}) where T <: AbstractPass
     return sum(validate_passport.(passports))
 end
 
-println(count_valid_ish_passports(parse_data(datafile)))
+res1 = count_valid_ish_passports(parse_data(datafile))
+@assert res1 == 235
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -94,7 +96,7 @@ mutable struct PassportStrict <: AbstractPassport
     ecl::Union{String, Nothing}
     pid::Union{String, Nothing}
     cid::Union{String, Nothing}
-    
+
     # initialising passport
     function PassportStrict()
         byr, iyr, eyr, hgt, hcl, ecl, pid, cid =
@@ -106,7 +108,7 @@ end
 function parse_data_strict(datafile::String)
     passports = Vector{PassportStrict}()
     input = readlines(datafile)
-    
+
     line_counter = 1
     passport = PassportStrict()
     for line in input
@@ -116,53 +118,53 @@ function parse_data_strict(datafile::String)
             passport = PassportStrict()
             continue
         end
-        
+
         split_line = split(line, r"[ :]")
         for i in 1:length(split_line)
             if isodd(i)
                 field, value = Symbol(split_line[i]), split_line[i + 1]
-                
+
                 # if the fields don't align with the restrictions, we set them to nothing to disqualify them
                 if field == :byr
                     try_val = tryparse(Int, value)
-                    
+
                     if ! isnothing(try_val)
                         value = try_val
                     end
-                    
+
                     if ! (1920 ≤ value ≤ 2002)
                         value = nothing
                     end
                 elseif field == :iyr
                     try_val = tryparse(Int, value)
-                    
+
                     if ! isnothing(try_val)
                         value = try_val
                     end
-                    
+
                     if ! (2010 ≤ value ≤ 2020)
                         value = nothing
                     end
                 elseif field == :eyr
                     try_val = tryparse(Int, value)
-                    
+
                     if ! isnothing(try_val)
                         value = try_val
                     end
-                    
+
                     if ! (2020 ≤ value ≤ 2030)
                         value = nothing
                     end
                 elseif field == :hgt
                     try_val = tryparse(Int, value)
                     units = string()
-                    
+
                     if isnothing(try_val) # then the value has a unit of measurement
                         value, units = parse(Int, value[1:end - 2]), string(value[end - 1:end])
                     else
                         value = try_val
                     end
-                    
+
                     if ! isnothing(value)
                         if units == "cm"
                             if ! (150 ≤ value ≤ 193)
@@ -178,19 +180,19 @@ function parse_data_strict(datafile::String)
                     end
                 elseif field == :hcl
                     value = string(value)
-                    
+
                     if isnothing(match(r"^#[0-9a-f]{6}", value))
                         value = nothing
                     end
                 elseif field == :ecl
                     value = string(value)
-                    
+
                     if value ∉ ["amb", "blu", "brn", "gry", "grn", "hzl", "oth"]
                         value = nothing
                     end
                 elseif field == :pid
                     value = string(value)
-                    
+
                     if isnothing(match(r"[0-9]{9}", value))
                         value = nothing
                     elseif length(value) ≠ 9
@@ -199,22 +201,24 @@ function parse_data_strict(datafile::String)
                 elseif field == :cid
                     value = string(value)
                 end
-                
+
                 setfield!(passport, field, value)
             end
         end
-        
+
         if length(input) == line_counter
             push!(passports, passport)
         end
-        
+
         line_counter += 1
     end
-    
+
     return passports
 end
 
-println(count_valid_ish_passports(parse_data_strict(datafile)))
+res2 = count_valid_ish_passports(parse_data_strict(datafile))
+@assert res2 == 194
+println(res2)
 
 #=
 BenchmarkTools.Trial:

@@ -12,11 +12,11 @@ This is a naïve approach.
 function nthnumberspoken(n::Int, starting_numbers::Vector{Int})
     turn_number, spoken_before = length(starting_numbers), copy(starting_numbers)
     n ≤ length(starting_numbers) && return starting_numbers[n]
-    
+
     while true
         turn_number += 1
         last_spoken = last(spoken_before)
-        
+
         if isone(count(isequal(last_spoken), spoken_before))
             push!(spoken_before, 0)
         else
@@ -24,14 +24,16 @@ function nthnumberspoken(n::Int, starting_numbers::Vector{Int})
             i1, i2 = found_indices[(end - 1):end]
             push!(spoken_before, abs(i1 - i2))
         end
-        
+
         if isequal(turn_number, n)
             return last(spoken_before)
         end
     end
 end
 
-println(nthnumberspoken(2020, parse_input(datafile)))
+res1 = nthnumberspoken(2020, parse_input(datafile))
+@assert res1 == 371
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -73,7 +75,9 @@ function nthnumberspoken_rethunk(n::Int, starting_numbers::Vector{Int})
     end
 end
 
-println(nthnumberspoken_rethunk(30000000, parse_input(datafile)))
+res2 = nthnumberspoken_rethunk(30000000, parse_input(datafile))
+@assert res2 == 352
+println(res2)
 
 #=
 BenchmarkTools.Trial:

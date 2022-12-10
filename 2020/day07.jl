@@ -1,4 +1,4 @@
-const datafile = joinpath(@__DIR__, "inputs", "data7.txt")
+const datafile = joinpath(@__DIR__, "inputs", "data07.txt")
 const my_bag = "shiny gold"
 
 function isbag_in_bag(
@@ -8,7 +8,7 @@ function isbag_in_bag(
     )
 
     inner_bags = dict[key]
-    
+
     if inner_bags isa AbstractArray
         if haskey(dict, key)
             if search_value ∈ inner_bags
@@ -17,7 +17,7 @@ function isbag_in_bag(
                 return false
             end
         end
-    
+
         for v in inner_bags
             if haskey(dict, v)
                 if isbag_in_bag(dict, v, search_value)
@@ -26,29 +26,31 @@ function isbag_in_bag(
             end
         end
     end
-    
+
     return false
 end
 
 function count_bag_containers(datafile::String, search_bag::String)
     babushka_bags = Dict{String, Union{String, Dict, Vector}}()
-    
+
     open(datafile) do io
         while ! eof(io)
             line = readline(io)
             outer_bag, inner_bags = split(line, "contain")
             outer_bag = strip.(replace.(outer_bag, r"(\bbag\b)|(\bbags\b)" => ""))
             inner_bags = strip.(replace.(filter!(e -> e ≠ "", split(inner_bags, r"[,|.]")), r"(\bbag\b)|(\bbags\b)|\d" => ""))
-            
+
             push!(babushka_bags, outer_bag => inner_bags)
         end
     end
-    
-    
+
+
     return sum([isbag_in_bag(babushka_bags, outer_bag, search_bag) for outer_bag in keys(babushka_bags)])
 end
 
-println(count_bag_containers(datafile, my_bag))
+res1 = count_bag_containers(datafile, my_bag)
+@assert res1 == 224
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -94,7 +96,9 @@ function count_bags_required(datafile::String, search_bag::String)
     return count_bags_recursive(babushka_bags, search_bag)
 end
 
-println(count_bags_required(datafile, my_bag))
+res2 = count_bags_required(datafile, my_bag)
+@assert res2 == 1488
+println(res2)
 
 #=
 BenchmarkTools.Trial:

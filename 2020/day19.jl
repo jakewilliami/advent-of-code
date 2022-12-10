@@ -109,7 +109,9 @@ end
 
 @assert part1("inputs/test19c.txt") == 2
 @assert part1("inputs/test19d.txt") == 3
-println("Part One: ", part1(datafile))
+res1 = part1(datafile)
+@assert res1 == 250
+println("Part One: ", res1)
 
 #=
 julia> @benchmark part1($datafile)
@@ -138,7 +140,9 @@ function part2(input_path::String)
 end
 
 @assert part2("inputs/test19d.txt") == 12
-println("Part Two: ", part2(datafile))
+res2 = part2(datafile)
+@assert res2 == 359
+println("Part Two: ", res2)
 
 #=
 julia> @benchmark part2($datafile)

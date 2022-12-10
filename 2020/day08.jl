@@ -1,10 +1,10 @@
 using DelimitedFiles: readdlm
 
-const datafile = joinpath(@__DIR__, "inputs", "data8.txt")
+const datafile = joinpath(@__DIR__, "inputs", "data08.txt")
 
 function parse_input(datafile::String)
     instructions = Matrix{Union{Union{String, SubString}, Int}}(undef, 0, 2)
-    
+
     open(datafile) do io
         while ! eof(io)
             line = readline(io)
@@ -12,19 +12,19 @@ function parse_input(datafile::String)
             instructions = cat(instructions, [op arg], dims = 1)
         end
     end
-    
+
     return instructions
 end
 
 function get_accumulator(instructions::Matrix)
     processed = Vector{Int}()
     row_idx, acc = 1, 0
-    
+
     while row_idx ≤ size(instructions, 1)
         op, arg = instructions[row_idx, :]
-        
+
         push!(processed, row_idx)
-        
+
         if op == "acc"
             if row_idx + 1 ∈ processed
                 return acc
@@ -46,7 +46,9 @@ function get_accumulator(instructions::Matrix)
     end
 end
 
-println(get_accumulator(parse_input(datafile)))
+res1 = get_accumulator(parse_input(datafile))
+@assert res1 == 1832
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -118,7 +120,9 @@ function get_corrected_accumulator(instructions::Matrix; line_number::Int = 1)
     end
 end
 
-println(get_corrected_accumulator(parse_input(datafile)))
+res2 = get_corrected_accumulator(parse_input(datafile))
+@assert res2 == 662
+println(res2)
 
 #=
 BenchmarkTools.Trial:

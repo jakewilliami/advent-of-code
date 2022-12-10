@@ -10,11 +10,11 @@ end
 function parse_input(datafile::String)
     rules, my_ticket, nearby_tickets = Dict{String, Vector{UnitRange{Int}}}(), Vector{Int}(), Vector{Vector{Int}}()
     data_idx_of_interest = 1
-    
+
     open(datafile) do io
         while ! eof(io)
             line = readline(io)
-            
+
             if isempty(line)
                 data_idx_of_interest += 1 #% 3
                 continue
@@ -33,7 +33,7 @@ function parse_input(datafile::String)
             end
         end
     end
-    
+
     return rules, my_ticket, nearby_tickets
 end
 
@@ -64,11 +64,13 @@ function sum_invalid(
         isempty(I) && continue
         push!(values, nearby_ticket[I]...)
     end
-    
+
     return sum(values)
 end
 
-println(sum_invalid(parse_input(datafile)...))
+res1 = sum_invalid(parse_input(datafile)...)
+@assert res1 == 22057
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -132,7 +134,9 @@ function field_search(
 	return prod(Int[my_ticket[idx] for (name, idx) in mapped if contains(name, "departure")])
 end
 
-println(field_search(parse_input(datafile)...))
+res2 = field_search(parse_input(datafile)...)
+@assert res2 == 1093427331937
+println(res2)
 
 #=
 BenchmarkTools.Trial:

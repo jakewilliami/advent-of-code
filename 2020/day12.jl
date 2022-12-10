@@ -19,7 +19,7 @@ mutable struct Ship
     facing::Symbol
     pos::NTuple{4, Int}
     waypoint_pos::NTuple{4, Int} # added for part 2
-    
+
     Ship() = new(:E, (0, 0, 0, 0), (1, 10, 0, 0)) # ship starts facing east
     Ship(facing::Symbol, pos::NTuple{4, Int}, waypoint_pos::NTuple{4, Int}) = new(facing, pos, waypoint_pos)
 end
@@ -29,17 +29,17 @@ function move(pos::NTuple{4, Int}, direction::Symbol, pos_shift::Int)
     direction_idx = findfirst(e -> e == direction, cardinal_directions)
     opposite_idx = mod1(direction_idx + 2, 4)
     pos = collect(pos)
-    
+
     # shifting given direction
     pos[direction_idx] = pos[direction_idx] + pos_shift
-    
+
     # equalising antipodes
     antipode_view = view(pos, [direction_idx, opposite_idx])
     local_antipode_max_idx = argmax(antipode_view)
     antipode_max_idx = antipode_view.indices[1][local_antipode_max_idx]
     pos[antipode_max_idx] = abs(pos[direction_idx] - pos[opposite_idx])
     pos[mod1(antipode_max_idx + 2, 4)] = 0
-    
+
     return Tuple(pos)
 end
 
@@ -57,7 +57,7 @@ function rotate(facing::Symbol, direction::Symbol, deg::Int)
     cardinal_directions = Symbol[:N, :E, :S, :W]
     current_idx = findfirst(e -> e == facing, cardinal_directions)
     idx_shift = mod1(fld(deg, 90), 4) * ifelse(direction == :R, 1, -1)
-    
+
     return cardinal_directions[mod1(current_idx + idx_shift, 4)]
 end
 
@@ -68,7 +68,7 @@ end
 
 function manhattan_distance(instructions::Matrix{T}) where T
     ship = Ship()
-    
+
     for (action, value) in eachrow(instructions)
         if action ∈ [:L, :R]
             rotate!(ship, action, value)
@@ -78,11 +78,13 @@ function manhattan_distance(instructions::Matrix{T}) where T
             move!(ship, value)
         end
     end
-    
+
     return sum(abs.((0, 0, 0, 0) .- ship.pos))
 end
 
-println(manhattan_distance(parse_input(datafile)))
+res1 = manhattan_distance(parse_input(datafile))
+@assert res1 == 1186
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -144,7 +146,9 @@ function manhattan_distance_again(instructions::Matrix{T}) where T
     return sum(abs.((0, 0, 0, 0) .- ship.pos))
 end
 
-println(manhattan_distance_again(parse_input(datafile)))
+res2 = manhattan_distance_again(parse_input(datafile))
+@assert res2 == 47806
+println(res2)
 
 #=
 BenchmarkTools.Trial:

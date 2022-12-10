@@ -78,7 +78,7 @@ function parse_file(file_path::String)
         end
         push!(tiles, Tile(id, matrixise(rows), rows))
     end
-    
+
     return tiles
 end
 
@@ -154,7 +154,7 @@ function side_matches(candidate::Tile, tiles::Vector{Tile})
             cs[i] = cs[i] || (candidate.sides[i] ∈ (tile.sides[j], reverse(tile.sides[j])))
         end
     end
-    
+
     return cs
 end
 
@@ -211,7 +211,7 @@ end
 
 function part_2(tiles::Vector{Tile})
     puzzle = Vector{Vector{Tile}}()
-    
+
     push!(puzzle, Vector{Tile}())
     for tile in tiles
         if side_matches(tile, tiles) == CORNER_INDICES[TOP_LEFT]
@@ -219,25 +219,25 @@ function part_2(tiles::Vector{Tile})
             break
         end
     end
-    
+
     row_len = isqrt(length(tiles))
-    
+
     for i in 2:row_len
         right_tile = find_right_tile(puzzle[1][i - 1], tiles)
         push!(puzzle[1], right_tile)
     end
-    
+
     for i in 2:row_len
         push!(puzzle, Vector{Tile}())
         bottom_tile = find_bottom_tile(puzzle[i - 1][1], tiles)
         push!(puzzle[i], bottom_tile)
-            
+
         for j in 2:row_len
             bottom_right = find_bottom_right_tile(puzzle[i][j - 1], puzzle[i - 1][j], tiles)
             push!(puzzle[i], bottom_right)
         end
     end
-    
+
     picture = Vector{String}()
     for row in puzzle
         for i in 2:(TILE_WIDTH - 1)
@@ -248,7 +248,7 @@ function part_2(tiles::Vector{Tile})
             push!(picture, join(picture_row))
         end
     end
-        
+
     picture = reverse(picture)
     @info count_hash(picture), count_monsters(picture, row_len), count_hash(SEAMONSTER)
     return count_hash(picture) - count_monsters(picture, row_len) * count_hash(SEAMONSTER)
@@ -260,12 +260,13 @@ function solve_file(file_path::String)
     tiles = parse_file(file_path)
     # Part 1
     p1 = part_1(tiles)
+    @assert p1 == 60145080587029
     println("Part 1: $p1")
     println("\tTest result:     $(part_1(test_tiles) == 20899048083289)")
     println("\tExpected result: $(p1 == 60145080587029)")
     # Part 2
-    @warn("Part 2 is not counting sea monsters correctly :-(")
     p2 = part_2(tiles)
+    @assert p2 == 1901 "Part 2 is not counting sea monsters correctly (expected 1901 but got $p2) :-( "
     println("Part 2: $p2")
     println("\tTest result:     $(part_2(test_tiles) == 273)")
     println("\tExpected result: $(p2 == 1901)")

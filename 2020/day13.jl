@@ -11,11 +11,13 @@ function catch_nearest_bus(input::NTuple{2, Any})
     earliest_timestamp, IDs = input
     viable_options = NTuple{2, Int}[(ID, ID * cld(earliest_timestamp, ID)) for ID in IDs if ID ≠ "x"]
     earliest_bus_id, earliest_bus_timestamp = first(view(viable_options, argmin(Int[x for (_, x) in viable_options])))
-    
+
     return (earliest_bus_timestamp - earliest_timestamp) * earliest_bus_id
 end
 
-println(catch_nearest_bus(parse_input(datafile)))
+res1 = catch_nearest_bus(parse_input(datafile))
+@assert res1 == 3966
+println(res1)
 
 #=
 BenchmarkTools.Trial:
@@ -90,7 +92,9 @@ function find_timestamp_brute_force(input::NTuple{2, Any})
     return nothing
 end
 
-println(find_timestamp_brute_force(parse_input(datafile)))
+res2 = find_timestamp_brute_force(parse_input(datafile))
+@assert res2 == 800177252346225
+println(res2)
 
 #=
 BenchmarkTools.Trial:
@@ -106,7 +110,7 @@ BenchmarkTools.Trial:
   evals/sample:     1
 =#
 
-using Mods: CRT, Mod, modulus
+#=using Mods: CRT, Mod, modulus
 
 function find_timestamp_clever(input::NTuple{2, Any})
     rubbish, IDs = input
@@ -116,7 +120,9 @@ function find_timestamp_clever(input::NTuple{2, Any})
     return modulus(res) - res.val
 end
 
-println(find_timestamp_clever(parse_input(datafile)))
+res3 = find_timestamp_clever(parse_input(datafile))
+@assert res3 == 800177252346225
+println(res3)=#
 
 #=
 BenchmarkTools.Trial:
