@@ -172,7 +172,8 @@ direction(i::CartesianIndex{N}) where {N} = CartesianIndex{N}(map(sign, Tuple(i)
 
 function _cartesian_directions(dim::I; include_origin::Bool = false) where {I<:Integer}
     origin = Tuple(𝟘(dim))
-    dir_itr = Base.Iterators.product([-one(Int):one(Int) for i in one(Int):dim]...)
+    one_ = one(Int)
+    dir_itr = Base.Iterators.product((-one_:one_ for i in one_:dim)...)
     fltr(t::NTuple{N,Int}) where {N} = include_origin ? true : t ≠ origin
     return (CartesianIndex(t) for t in dir_itr if fltr(t))
 end
