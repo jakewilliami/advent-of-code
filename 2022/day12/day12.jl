@@ -1,5 +1,6 @@
 using AdventOfCode.Multidimensional
 
+using DataStructures
 using Graphs
 import Graphs: SimpleGraphs.SimpleEdge
 
@@ -74,3 +75,85 @@ function main()
 end
 
 main()
+
+
+#=
+Using BFS, rather than constructing a graph and using A*.
+
+I first tried implementing this, but couldn't figure it out in any
+reasonable amount of time.  (I know it's trivial to comp. sci. students!)
+I implemented this after seeing a Python solution using this logic.
+
+This BFS solution performs considerably faster.
+
+julia> @btime part1($data);
+  2.794 ms (22593 allocations: 1.86 MiB)
+
+julia> @btime part1_bfs($data);
+  785.353 μs (88 allocations: 846.50 KiB)
+
+julia> @btime part2($data);
+  392.626 ms (106554 allocations: 198.35 MiB)
+
+julia> @btime part2_bfs($data);
+  804.159 μs (92 allocations: 894.66 KiB
+=#
+
+
+function _bfs_core(data::Matrix{Char}, Q::Queue{Tuple{CartesianIndex{2}, Int}}, S::Set{CartesianIndex{2}})
+    directions = cardinal_directions(2)
+    while !isempty(Q)
+        i, v = dequeue!(Q)
+        i ∈ S && continue
+        push!(S, i)
+        if data[i] == 'E'
+            return v
+        end
+        for d in directions
+            j = i + d
+            hasindex(data, j) || continue
+            if elevation_allowed(data[i], data[j])
+                enqueue!(Q, (j, v + 1))
+            end
+        end
+    end
+end
+
+
+function part1_bfs(data::Matrix{Char})
+    Q = Queue{Tuple{CartesianIndex{2}, Int}}()
+    start_i = findfirst(i -> data[i] == 'S', CartesianIndices(data))
+    enqueue!(Q, (start_i, 0))
+    S = Set{CartesianIndex{2}}()
+
+    return _bfs_core(data, Q, S)
+end
+
+
+function part2_bfs(data::Matrix{Char})
+    Q = Queue{Tuple{CartesianIndex{2}, Int}}()
+    for i in CartesianIndices(data)
+        if data[i] ∈ ('S', 'a')
+            enqueue!(Q, (i, 0))
+        end
+    end
+    S = Set{CartesianIndex{2}}()
+
+    return _bfs_core(data, Q, S)
+end
+
+
+function main_bfs()
+    data = readlines_into_char_matrix("data12.txt")
+
+    # Part 1
+    part1_solution_bfs = part1_bfs(data)
+    @assert part1_solution_bfs == 456
+
+    # Part 2
+    part2_solution_bfs = part2_bfs(data)
+    @assert part2_solution_bfs == 454
+end
+
+
+main_bfs()
