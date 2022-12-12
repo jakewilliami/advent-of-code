@@ -17,7 +17,7 @@ The number of elements _cardinally_ adjacent to any given element in an infinite
 
 See also: [`n_adjacencies`](@ref) and [`n_faces`](@ref).
 """
-n_cardinal_adjacencies(n::I) where {I <: Integer} = 2n
+n_cardinal_adjacencies(n::I) where {I<:Integer} = 2n
 
 
 """
@@ -29,7 +29,7 @@ The number of faces of a structure for a given ℝⁿ.
 
 See also: [`n_cardinal_adjacencies`](@ref).
 """
-n_faces(n::I) where {I <: Integer} = n_cardinal_adjacencies(n)
+n_faces(n::I) where {I<:Integer} = n_cardinal_adjacencies(n)
 
 
 """
@@ -41,7 +41,7 @@ The number of elements adjacent to any given element in an infinite lattice/[hyp
 
 See also: [`n_cardinal_adjacencies`](@ref).
 """
-n_adjacencies(n::I) where {I <: Integer} = 3^n - 1
+n_adjacencies(n::I) where {I<:Integer} = 3^n - 1
 
 
 """
@@ -51,7 +51,8 @@ areadjacent(i::CartesianIndex{N}, j::CartesianIndex{N}) -> bool
 
 Are `i` and `j` adjacent in n-dimensional Cartesian space?
 """
-areadjacent(i::CartesianIndex{N}, j::CartesianIndex{N}) where {N} = !any(>(1), map(abs, Tuple(i - j)))
+areadjacent(i::CartesianIndex{N}, j::CartesianIndex{N}) where {N} =
+    !any(>(1), map(abs, Tuple(i - j)))
 
 
 ### Origin
@@ -65,7 +66,7 @@ The origin in ℝⁿ.
 
 You can type 𝟘 by typing `\\bbzero<tab>`.
 """
-𝟘(n::I) where {I <: Integer} = CartesianIndex(ntuple(_ -> zero(Int), n))
+𝟘(n::I) where {I<:Integer} = CartesianIndex(ntuple(_ -> zero(Int), n))
 
 
 ### Indexing
@@ -79,7 +80,7 @@ Does the array `M` have index `i`?
 
 See also: [`
 """
-hasindex(M::AbstractArray{T}, i::CartesianIndex{N}) where {T, N} = checkbounds(Bool, M, i)
+hasindex(M::AbstractArray{T}, i::CartesianIndex{N}) where {T,N} = checkbounds(Bool, M, i)
 
 
 """
@@ -91,7 +92,7 @@ Returns the index, or `nothing` if the index is unavailable.
 
 See also: [`hasindex`](@ref) and [`tryindices`](@ref).
 """
-tryindex(M::AbstractArray, i::CartesianIndex) where {T, N} = hasindex(M, i) ? M[i] : nothing
+tryindex(M::AbstractArray, i::CartesianIndex) where {T,N} = hasindex(M, i) ? M[i] : nothing
 
 
 ### Cartesian directions
@@ -111,10 +112,10 @@ See also: [`cartesian_directions`](@ref) and [`cardinal_directions`](@ref).
 direction(i::CartesianIndex{N}) where {N} = CartesianIndex{N}(map(sign, Tuple(i)))
 
 
-function _cartesian_directions(dim::I; include_origin::Bool = false) where {I <: Integer}
+function _cartesian_directions(dim::I; include_origin::Bool = false) where {I<:Integer}
     origin = Tuple(𝟘(dim))
-    dir_itr = Base.Iterators.product([-one(Int):one(Int) for i in one(Int):dim]...)
-    fltr(t::NTuple{N, Int}) where {N} = include_origin ? true : t ≠ origin
+    dir_itr = Base.Iterators.product([-one(Int):one(Int) for i = one(Int):dim]...)
+    fltr(t::NTuple{N,Int}) where {N} = include_origin ? true : t ≠ origin
     return (CartesianIndex(t) for t in dir_itr if fltr(t))
 end
 
@@ -134,8 +135,8 @@ results of this function.
 
 See also: [`cartesian_directions`](@ref).
 """
-function cardinal_directions(dim::I; include_origin::Bool = false) where {I <: Integer}
-    dir_itr = _cartesian_directions(dim, include_origin=include_origin)
+function cardinal_directions(dim::I; include_origin::Bool = false) where {I<:Integer}
+    dir_itr = _cartesian_directions(dim, include_origin = include_origin)
 
     # The sum of the absolute values of the elements in a diagonal coordinate
     # is always equal to the number of dimensions because, in a diagonal coordinate,
@@ -162,8 +163,8 @@ results of this function.
 
 See also: [`cardinal_directions`](@ref).
 """
-cartesian_directions(dim::I; include_origin::Bool = false) where {I <: Integer} =
-    collect(_cartesian_directions(dim, include_origin=include_origin))
+cartesian_directions(dim::I; include_origin::Bool = false) where {I<:Integer} =
+    collect(_cartesian_directions(dim, include_origin = include_origin))
 
 
 end  # end module
