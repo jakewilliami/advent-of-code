@@ -5,6 +5,16 @@ using Test
     @testset "AdventOfCode.jl/Multidimensional" begin
         using AdventOfCode.Multidimensional
 
+        # Read
+        p, fp = mktemp(cleanup = false)
+        A = permutedims(reshape(0:9, (5, 2)))
+        write(fp, "01234\n")
+        write(fp, "56789\n")
+        close(fp)
+        @test readlines_into_char_matrix(p) == only.(string.((A)))
+        @test readlines_into_int_matrix(p) == A
+        rm(p)
+
         # Adjacencies
         @test n_cardinal_adjacencies(2) == 4
         @test n_cardinal_adjacencies(3) == 6
@@ -36,11 +46,17 @@ using Test
 
         # Cartesian directions
         ℝ²_cardinal_directions = CartesianIndex.(((-1, 0), (1, 0), (0, -1), (0, 1)))
-        ℝ²_directions_no_origin = (ℝ²_cardinal_directions..., CartesianIndex.(((-1, -1), (-1, 1), (1, -1), (1, 1)))...)
+        ℝ²_directions_no_origin = (
+            ℝ²_cardinal_directions...,
+            CartesianIndex.(((-1, -1), (-1, 1), (1, -1), (1, 1)))...,
+        )
         ℝ²_cartesian_directions = (ℝ²_directions_no_origin..., CartesianIndex(0, 0))
         @test all(∈(ℝ²_cardinal_directions), cardinal_directions(2))
         @test all(∈(ℝ²_directions_no_origin), cartesian_directions(2))
-        @test all(∈(ℝ²_cartesian_directions), cartesian_directions(2; include_origin=true))
+        @test all(
+            ∈(ℝ²_cartesian_directions),
+            cartesian_directions(2; include_origin = true),
+        )
         @test direction(CartesianIndex(0, 0)) == CartesianIndex(0, 0)
         @test direction(CartesianIndex(1, 10)) == CartesianIndex(1, 1)
         @test direction(CartesianIndex(-69, 0)) == CartesianIndex(-1, 0)

@@ -1,3 +1,6 @@
+using AdventOfCode
+
+
 ### Enums and consts
 
 const TILE_WIDTH = 10
@@ -53,7 +56,7 @@ flip(tile::Tile) = Tile(tile.id, reverse(tile.data, dims = 1))
 ### Parse input
 
 matrixise(rows::Vector{T}) where {T} =
-    reduce(vcat, permutedims(collect(r)) for r in rows)::Matrix{eltype(T)}
+    AdventOfCode.Multidimensional._lines_into_matrix(rows)
 
 function parse_file(file_path::String)
     tiles = Tile[]

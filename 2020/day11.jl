@@ -1,4 +1,5 @@
 using AdventOfCode.Multidimensional
+import AdventOfCode.Multidimensional: _lines_into_matrix
 
 const datafile = joinpath(@__DIR__, "inputs", "data11.txt")
 
@@ -21,7 +22,7 @@ end
 
 function mutate_seats!(seat_layout::Vector{String})
     no_seat, empty_seat, occupied_seat = '.', 'L', '#'
-    seat_layout = reduce(vcat, permutedims(collect(s)) for s in seat_layout)
+    seat_layout = _lines_into_matrix(seat_layout)
     seat_layout_clone = copy(seat_layout)
 
     for row_idx in axes(seat_layout_clone, 1)
@@ -114,7 +115,7 @@ end
 
 function mutate_seats_again!(seat_layout::Vector{String})
     no_seat, empty_seat, occupied_seat = '.', 'L', '#'
-    seat_layout = reduce(vcat, permutedims(collect(s)) for s in seat_layout)
+    seat_layout = _lines_into_matrix(seat_layout)
     seat_layout_clone = copy(seat_layout)
 
     for row_idx in axes(seat_layout_clone, 1)

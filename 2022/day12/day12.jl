@@ -4,9 +4,6 @@ using Graphs
 import Graphs: SimpleGraphs.SimpleEdge
 
 
-parse_input(f::String) = reduce(vcat, permutedims(collect(s)) for s in readlines(f))
-
-
 function elevation_allowed(c1::Char, c2::Char)
     c1 == 'S' && (c1 = 'a')
     c2 == 'E' && (c2 = 'z')
@@ -63,7 +60,7 @@ end
 
 
 function main()
-    data = parse_input("data12.txt")
+    data = readlines_into_char_matrix("data12.txt")
 
     # Part 1
     part1_solution = part1(data)

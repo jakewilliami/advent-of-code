@@ -1,4 +1,5 @@
 using AdventOfCode.Multidimensional
+import AdventOfCode.Multidimensional: _lines_into_matrix
 
 const testfile = "inputs/test17.txt"
 const datafile = "inputs/data17.txt"
@@ -72,7 +73,7 @@ function solve(iterations::Int, layout::Array{Char, N}) where N
 end
 
 part1(iterations::Int, layout::Vector{String}) =
-    count(==(ACTIVE), solve(6, promote_to_nD(reduce(vcat, permutedims(collect(s)) for s in layout), 3, INACTIVE)))
+    count(==(ACTIVE), solve(6, promote_to_nD(_lines_into_matrix(layout), 3, INACTIVE)))
 part1(iterations::Int, datafile::String) =
     part1(6, readlines(datafile))
 

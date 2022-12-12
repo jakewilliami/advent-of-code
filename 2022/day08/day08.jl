@@ -1,10 +1,5 @@
 using AdventOfCode.Multidimensional
 
-# Parse input
-
-parse_input(f::String) =
-    reduce(vcat, permutedims(parse.(Int, collect(s))) for s in readlines(f))
-
 
 # Increment an index further away from the origin, e.g., (1, -3) -> (2, -4)
 _move_further_from_origin(i::CartesianIndex{N}) where {N} = i + direction(i)
@@ -76,7 +71,7 @@ end
 const DIRECTIONS = cardinal_directions(2)
 
 function main()
-    data = parse_input("data08.txt")
+    data = readlines_into_int_matrix("data08.txt")
 
     # Part 1
     part1_solution = part1(data)

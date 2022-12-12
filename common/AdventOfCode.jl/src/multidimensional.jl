@@ -1,9 +1,67 @@
 module Multidimensional
 
+export readlines_into_char_matrix, readlines_into_int_matrix
 export n_cardinal_adjacencies, n_faces, n_adjacencies, areadjacent
 export 𝟘
 export hasindex, tryindex, tryindices
 export cardinal_directions, cartesian_directions, direction
+
+
+# Read
+
+_lines_into_matrix(lines, f::Function = identity) =
+    reduce(vcat, permutedims(f.(collect(s))) for s in lines if !isempty(strip(s)))
+
+
+"""
+```julia
+readlines_into_char_matrix(file::String) -> Matrix{Char}
+```
+
+Create a matrix of characters given a file, in which each line represents a row, and each character, a respective element in that row.
+
+For example, given the file
+```
+abcde
+fghij
+```
+
+This function will produce the matrix
+```julia
+2×5 Matrix{Char}:
+ 'a'  'b'  'c'  'd'  'e'
+ 'f'  'g'  'h'  'i'  'j'
+```
+
+See also: [`readlines_into_int_matrix`](@ref).
+"""
+readlines_into_char_matrix(file::String) = _lines_into_matrix(eachline(file))
+
+
+"""
+```julia
+readlines_into_char_matrix(file::String) -> Matrix{Int}
+```
+
+Create a matrix of integers (one per character) given a file, in which the line index represents the row, and the character index, the column.
+
+For example, given the file
+```
+01234
+56789
+```
+
+This function will produce the matrix
+```julia
+2×5 Matrix{Int64}:
+ 0  1  2  3  4
+ 5  6  7  8  9
+```
+
+See also: [`readlines_into_char_matrix`](@ref).
+"""
+readlines_into_int_matrix(file::String) =
+    _lines_into_matrix(eachline(file), c -> parse(Int, c))
 
 
 ### Adjacencies
@@ -114,7 +172,7 @@ direction(i::CartesianIndex{N}) where {N} = CartesianIndex{N}(map(sign, Tuple(i)
 
 function _cartesian_directions(dim::I; include_origin::Bool = false) where {I<:Integer}
     origin = Tuple(𝟘(dim))
-    dir_itr = Base.Iterators.product([-one(Int):one(Int) for i = one(Int):dim]...)
+    dir_itr = Base.Iterators.product([-one(Int):one(Int) for i in one(Int):dim]...)
     fltr(t::NTuple{N,Int}) where {N} = include_origin ? true : t ≠ origin
     return (CartesianIndex(t) for t in dir_itr if fltr(t))
 end
