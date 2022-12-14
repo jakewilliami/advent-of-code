@@ -162,12 +162,16 @@ end
 
 ### Part 2
 
+x_bounds(D::CaveMap) = extrema(last(Tuple(i)) for i in keys(D))
+
+
 function part2(data::Vector{RockRanges})
     D = construct_cave_map(data)
     h = cave_height(D)
 
     # Make floor (floor level is 2 more than the height of the cave)
-    setindex!.(Ref(D), rock, CartesianIndex(h + 2, -1000):CartesianIndex(h + 2, 1000))
+    x1, x2 = x_bounds(D)
+    setindex!.(Ref(D), rock, CartesianIndex(h + 2, x1 - h):CartesianIndex(h + 2, x2 + h))
 
     # Let sand flow all across the floor, until full
     res = 0
@@ -181,7 +185,7 @@ function part2(data::Vector{RockRanges})
 end
 
 
-# Main
+### Main
 
 function main()
     data = parse_input("data14.txt")
