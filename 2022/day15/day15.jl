@@ -1,228 +1,163 @@
+# This was a really interesting problem today.  Our input are a list of sensors and
+# associated beacons; each sensor tells us its position, and the position of the closest
+# beacon to it.  From this information, we can deduce that all space closer in distance
+# (measured using the Manhattan distance) to the sensor than its closest beacon must not
+# have a beacon.  The ultimate goal is to find a beacon whose coordinates we do not have,
+# but analysing the negative space of the location, using the above logical deduction.
+#
+# Part one got us to find, for a given y coordinate, the number of spaces in which a beacon
+# cannot be present (based on the above logic).  I implemented this by iterating over a
+# reasonable x range, and for the given y coordinate, increment the result if the current
+# coordinate is within the Manhattan distance of the associated beacon for any one of our
+# sensors.
+#
+# Part two was a little more tricky to implement.  The way I went about it was to, for each
+# sensor, construct a set of points representing the line at the radius from the sensor at
+# the Manhattan distance of the closest beacon.  I figured that beacon we are searching for
+# is only just (i.e., within a couple of indices) out of the range of any of our radii.
+#
+# Throughout this day, I struggled a little with optimisation challenges.  Initially I
+# thought to represent these data in a dictionary, however this got expensive with the real
+# input.  I then found a nice enough solution for part 1, as clever `break`ing from loops
+# means that I never have to keep track of the indices we have already checked.  I also
+# considered using a sparse array, but didn't end up using it.  Part 2 was even more tricky,
+# and I have not yet found a good solution for it.  There is certainly some optimisation to
+# be implemented for my part 2 solution, as I think it checks some indices multiple times.
+
+
 using AdventOfCode.Multidimensional
 
-using DataStructures
 
-f = "data15.txt"
-# f = "test.txt"
+### Parse input
 
-# data = readlines(f)
-data = []
-for line in eachline(f)
-    _, _, xstr, ystr, _, _, _, _, x2str, y2str = split(line)
-    xstr, ystr, x2str, y2str = strip.(strip.(last.(split.((xstr, ystr, x2str, y2str), '=')), ','), ':')
-    x, y, x1, y1 = parse.(Int, (xstr, ystr, x2str, y2str))
-    push!(data, (CartesianIndex(y, x), CartesianIndex(y1, x1)))
+function parse_input(data_file::String)
+    re = r"Sensor at x=(\-?\d+), y=(\-?\d+): closest beacon is at x=(\-?\d+), y=(\-?\d+)"
+    data = NTuple{2, CartesianIndex{2}}[]
+    for line in eachline(data_file)
+        xs_str, ys_str, xb_str, yb_str = match(re, line).captures
+        xs, ys, xb, yb = parse.(Int, (xs_str, ys_str, xb_str, yb_str))
+        push!(data, (CartesianIndex(ys, xs), CartesianIndex(yb, xb)))
+    end
+
+    return data
 end
 
-# println(data)
 
-@enum Tech sensor beacon no_beacon
+### Part 1
 
-function initialise_map(data)
-    D = Dict{CartesianIndex{2}, Tech}()
-    for (sᵢ, bᵢ) in data
-        D[sᵢ] = sensor
-        D[bᵢ] = beacon
-    end
-    return D
-end
-
-#=function is_further_away(S, B, mayB)
-    d1 = B - S
-    d2 = mayB - S
-    return last(Tuple(d2)) > last(Tuple(d1)) || first(Tuple(d2)) > first(Tuple(d1))
-end=#
-
-md(i, j) = sum(map(abs, Tuple(i - j)))# + map(abs, Tuple(i - j))
-
-function flood_fill(i, D, v, orig_i, beacons)
-    if i ∉ beacons
-        for d in cardinal_directions(2)
-            j = i + d
-            # u = j - orig_i
-            u = md(orig_i, j)
-            if !haskey(D, j) && u <= v#!is_further_away(u, v)#u <= v
-                D[j] = no_beacon
-                flood_fill(j, D, v, orig_i, beacons)
-            end
-        end
-    end
-end
-
-#=function flood_fill(i, D, beacons, v)
-    Q = Queue()
-    enqueue!(Q, i)
-    while !isempty(Q)
-        j = dequeue!(Q)
-        if j ∉ beacons &&
-            enqueue!(Q)
-        end
-    end
-end=#
-
-get_x_bounds(beacons::Set{CartesianIndex{2}}) = extrema(last(Tuple(i)) for i in beacons)
+# Calculate the Manhattan distance of two points
+# https://www.wikiwand.com/en/Taxicab_geometry
+md(i::CartesianIndex{2}, j::CartesianIndex{2}) = sum(map(abs, Tuple(i - j)))
 
 
-function main(data)
+get_x_bounds(S::Set{CartesianIndex{2}}) = extrema(last(Tuple(i)) for i in S)
+
+
+function part1(data::Vector{NTuple{2, CartesianIndex{2}}})
     R = 2_000_000
-    # R = 10
-    D = initialise_map(data)
 
     sensors = Set{CartesianIndex{2}}(s for (s, _b) in data)
     beacons = Set{CartesianIndex{2}}(b for (_s, b) in data)
 
-    directions = cartesian_directions(2)
-    Q = Queue{CartesianIndex{2}}()
-
-    # flood_fill(
-    D2 = Dict{CartesianIndex{2}, Tuple{CartesianIndex{2}, Set{CartesianIndex{2}}}}()
-    D3 = Dict{CartesianIndex{2}, Int}()
-
-    # println(sensors)
-
+    # Precompute Manhattan distances between sensors and associated
+    # beacons, in the interest of efficiency
+    D = Dict{CartesianIndex{2}, Int}()
     for (sᵢ, bᵢ) in data
         v = md(bᵢ, sᵢ)
-        # radius = get_md_radius(sᵢ, v)
-        # D2[sᵢ] = (bᵢ, radius)
-        D3[sᵢ] = v
+        D[sᵢ] = v
     end
 
     x_min, x_max = get_x_bounds(beacons)
 
-    # 4122284 IS TOO LOW
-
-    #=D4 = Dict{NTuple{2, CartesianIndex{2}}, Int}()
-    for xᵢ in x_min:x_max
-        i = CartesianIndex(R, xᵢ)
-        for sᵢ in sensors
-            u = md(i, sᵢ)
-            D4[(sᵢ, i)] = u
-        end
-    end=#
-    # println(D4)
-
-    m = maximum(d for (_sᵢ, d) in D3) + 1
-    S = Set{CartesianIndex{2}}()
+    # Iterate over a reasonable x range, and for the selected y
+    # coordinate (R), increment result if the current coordinate
+    # is in the range of any of our sensors
+    m = maximum(d for (_sᵢ, d) in D) + 1
     res = 0
-    for xᵢ in (x_min - m):(x_max + m)
+    xᵢ = x_min - m
+    while xᵢ <= (x_max + m)
         i = CartesianIndex(R, xᵢ)
         for sᵢ in sensors
-            v = D3[sᵢ]
-            # u = D4[(sᵢ, i)]
+            v = D[sᵢ]
             u = md(i, sᵢ)
-            if u <= v && i ∉ S && i ∉ sensors && i ∉ beacons
-                # println(i)
-                push!(S, i)
+            if u <= v && i ∉ sensors && i ∉ beacons
                 res += 1
+                break
             end
         end
+        xᵢ += 1
     end
 
-    #=for xᵢ in (x_min - m):(x_max + m)
-        i = CartesianIndex(R, xᵢ)
-        if i ∈ beacons
-            print("B")
-        elseif i ∈ sensors
-            print("S")
-        elseif i ∈ S
-            print("#")
-        else
-            print(".")
-        end
-    end=#
-    println()
-    #=for sᵢ in sensors
-        res += sum(D4[(sᵢ, CartesianIndex(R, xᵢ))] <= D3[sᵢ] for xᵢ in x_min:x_max)
-    end=#
-    # println(sensors)
     return res
-
-    #=for (sᵢ, bᵢ) in data
-        # v = bᵢ - sᵢ
-        # v = md(bᵢ, sᵢ)
-        # flood_fill(sᵢ, D, v, sᵢ, beacons)
-        # v = bᵢ - sᵢ
-        v = md(bᵢ, sᵢ)
-        enqueue!(Q, sᵢ)
-        # enqueue!(Q, bᵢ)
-        while !isempty(Q)
-            i = dequeue!(Q)
-            if md(i, sᵢ) > v
-                continue
-            end
-            for d in directions
-                j = i + d
-                # u = j - sᵢ
-                u = md(j, sᵢ)
-                # println("For $i, adjacent $j, MD $u from sensor (compared to $v), u < v = $(u < v) ")
-                if j == bᵢ
-                    continue
-                    # println("Found beacon")
-                    # break
-                end
-                if u <= v && j ∉ Q && j ∉ keys(D)
-                    enqueue!(Q, j)
-                end
-            end
-            # return
-            if !haskey(D, i)
-                D[i] = no_beacon
-            end
-        end
-    end=#
-
-    # return D
-    #=res = 0
-    for (i, s) in D
-        if first(Tuple(i)) == R && s == no_beacon
-            res += 1
-        end
-    end
-    return res=#
 end
 
-println(main(data))
+
+### Part 2
 
 get_y_bounds(beacons::Set{CartesianIndex{2}}) = extrema(first(Tuple(i)) for i in beacons)
 
+
+# Calculate the "tuning frequency" of a given index
 tf(i::CartesianIndex{2}) = sum(Tuple(i) .* (1, 4_000_000))
 
-function allowed(i::CartesianIndex{N}) where {N}
-    MIN_COORD, MAX_COORD = 0, 4_000_000
-    # MIN_COORD, MAX_COORD = 0, 20
-    j = Tuple(i)
-    return all(k >= MIN_COORD for k in j) && all(k <= MAX_COORD for k in j)
-end
 
-# does not include bounds!
+# Check if a beacon index is allowed based on the problem's constraints
+beacon_index_allowed(i::CartesianIndex{N}, min_coord::Int, max_coord::Int) where {N} =
+    all(min_coord ≤ k ≤ max_coord for k in Tuple(i))
+
+
+# Construct a set of indices creating the diagonal line between two points,
+# a and b, inclusive.
 function diag_line(a::CartesianIndex{2}, b::CartesianIndex{2})
     d = direction(b - a)
-    # return ()
+    line = Set{CartesianIndex{2}}()
+    push!(line, a)
 
-    # line = CartesianIndex{2}[]
-    # i = a + d
-    line = CartesianIndex{2}[a]
     i = a
     while i != b
         i += d
         push!(line, i)
-        # i += d
     end
+
     return line
 end
 
+
+# https://www.wikiwand.com/en/Bresenham's_line_algorithm
+# An alternative to the above diag_line method.  Similar performance.
+# This is the line algorithm for octant zero.  As the Manhattan
+# distance is not complex, the radius will always be a diamond
+# around the point, and so this is sufficient (as gradient is
+# always one).  Note that, compared to diag_line, order matters!
+function diag_line_alt(a::CartesianIndex{2}, b::CartesianIndex{2})
+    y0, x0 = Tuple(a)
+    y1, x1 = Tuple(b)
+    dx = x1 - x0
+    dy = y1 - y0
+    D = 2dy - dx
+    y = y0
+
+    S = Set{CartesianIndex{2}}()
+    for x in x0:x1
+        push!(S, CartesianIndex(y, x))
+        if D > 0
+            y += 1
+            D -= 2dx
+        end
+        D += 2dy
+    end
+
+    return S
+end
+
+
+# Given a point i, and a radius, will return the points around the
+# edge of the radius as defined by the Manhattan distance
 function get_md_radius(i::CartesianIndex{2}, r::Int)
     S = Set{CartesianIndex{2}}()
     bounds = Tuple(i + r * d for d in cardinal_directions(2))
-    # offsets = (i + CartesianIndex(r, 0), i + CartesianIndex(r, 0), )
     for k in 2:4
-        # R = bounds[k - 1]:bounds[k]
-        # for j in R
-            # push!(S, j)
-        # end
-        # push!(S, R)
         R = diag_line(bounds[k - 1], bounds[k])
-        # append!(S, diag_line(bounds[k - 1], bounds[k]))
         for p in R
             push!(S, p)
         end
@@ -231,6 +166,9 @@ function get_md_radius(i::CartesianIndex{2}, r::Int)
     return S
 end
 
+
+# Given a radius of points, will expand that radius by one, returning
+# the new points at the radius
 function get_outer_radius(R::Set{CartesianIndex{2}})
     R′ = Set{CartesianIndex{2}}()
     directions = cartesian_directions(2)
@@ -245,15 +183,15 @@ function get_outer_radius(R::Set{CartesianIndex{2}})
     return R′
 end
 
-function main2(data)
-    MIN_COORD, MAX_COORD = 0, 4_000_000
-    # MIN_COORD, MAX_COORD = 0, 20
+
+function part2(data::Vector{NTuple{2, CartesianIndex{2}}})
+    min_coord, max_coord = 0, 4_000_000
 
     sensors = Set{CartesianIndex{2}}(s for (s, _b) in data)
     beacons = Set{CartesianIndex{2}}(b for (_s, b) in data)
 
+    # Precompute Manhattan distances between sensors and beacons
     D = Dict{CartesianIndex{2}, Int}()
-
     for (sᵢ, bᵢ) in data
         v = md(bᵢ, sᵢ)
         D[sᵢ] = v
@@ -265,47 +203,44 @@ function main2(data)
 
     S = Set{CartesianIndex{2}}()
 
-    #=for xᵢ in (x_min - m):(x_max + m), yᵢ in (y_min - m):(y_max + m)
-        i = CartesianIndex(yᵢ, xᵢ)
-        for sᵢ in sensors
-            v = D[sᵢ]
-            u = md(i, sᵢ)
-            if u <= v && i ∉ S && i ∉ sensors && i ∉ beacons
-                push!(S, i)
-            end
-        end
-    end=#
-
-    # println(length(S))
-
-    #=for i in CartesianIndex(MIN_COORD, MIN_COORD):CartesianIndex(MAX_COORD, MAX_COORD)
-        i ∈ S && continue
-        i ∈ sensors && continue
-        i ∈ beacons && continue
-        allowed(i) || continue
-        return tf(i)
-    end=#
-
-    for (n, (sᵢ, bᵢ)) in enumerate(data)
+    # For each sensor, get a small radius (a couple of indices thick)
+    # and search for our missing beacon on the perimiter of our sensors'
+    # Manhattan distance to their closest beacons.  This is almost certainly
+    # not the most optimal solution, but just something I thought of.
+    for (sᵢ, bᵢ) in data
         v = md(sᵢ, bᵢ)
         R = get_md_radius(sᵢ, v)
-        for k in 0:0
-            R′ = get_outer_radius(R)
-            R = R ∪ R′
-        end
-        println("Processing radius $(length(R)) of sensor $sᵢ ($(n)/$(length(data)))")
-        for p in R
+        R′ = get_outer_radius(R)
+        for p in R ∪ R′
             d = direction(p - sᵢ)
             i = p + d
             i ∈ sensors && continue
             i ∈ beacons && continue
-            allowed(i) || continue
+            beacon_index_allowed(i, min_coord, max_coord) || continue
+            # Check if the current index has a Manhattan distance greater
+            # than the distance to the closest beacon for each sensor.
+            # If this is false, then this index cannot be a beacon.
             all(md(i, sⱼ) > sᵥ for (sⱼ, sᵥ) in D) || continue
-            return i, tf(i)
+            return tf(i)
         end
     end
-
-    # return length(S)
 end
 
-println(main2(data))
+
+### Main
+
+function main()
+    data = parse_input("data15.txt")
+
+    # Part 1
+    part1_solution = part1(data)
+    @assert part1_solution == 5127797
+    println("Part 1: $part1_solution")
+
+    # Part 2
+    part2_solution = part2(data)
+    @assert part2_solution == 12518502636475
+    println("Part 2: $part2_solution")
+end
+
+main()
