@@ -101,6 +101,10 @@ function chamber_height(chamber)
     return findfirst(!any(chamber[h - i + 1, :]) for i in 1:h) - 1 - 1
 end
 
+function highest_occupied_row(chamber)
+    return findfirst(all, eachrow(chamber))
+end
+
 # setindex!.(Ref(A), 1, ROCKS[i].points)
 
 rock_obstructed(chamber::Matrix{Bool}, rock_indices::Stack{CartesianIndex{2}}, offset::CartesianIndex{2}) =
@@ -120,6 +124,10 @@ function update_rock_position!(chamber::Matrix{Bool}, rock_indices::Stack{Cartes
     move_allowed || return chamber
 
     # Move the rock according to the offset
+    # chamber[rock_indices] .= false
+    # println(rock_indices)
+    # setindex!.(Ref(chamber), false, rock_indices)
+
     current_rock_indices = deepcopy(rock_indices)
     empty!(rock_indices)
     while !isempty(current_rock_indices)
@@ -132,6 +140,7 @@ function update_rock_position!(chamber::Matrix{Bool}, rock_indices::Stack{Cartes
 
     for p in rock_indices
         chamber[p] = true
+        # chamber[p + offset] = true
     end
     return chamber
 end
@@ -164,7 +173,6 @@ function draw(mat::Matrix{Bool})
     return s
 end
 
-# TODO: optimisation: ignore all below row that is fulled up
 function main(data)
     chamber = zeros(Bool, 4000, 7)
     chamber[size(chamber, 1), :] .= true  # floor
@@ -281,3 +289,107 @@ end
 
 # 3207 TOO HIGH
 println(main(data))
+
+
+### Part 2
+
+# Shift rows in a matrix down by n places
+function shift_down!(A::Matrix{T}, n::Int) where {T}
+    A[(n + 1):end, :] = A[1:(end - n), :]
+    A[1:n, :] .= zero(T)
+    return A
+end
+
+
+# TODO: optimisation: ignore all below row that is fulled up
+# TODO: repeated patters
+function main2(f, n)
+    data = strip(read(f, String))
+    chamber = zeros(Bool, 1500, 7)
+    chamber[size(chamber, 1), :] .= true  # floor
+    i, rᵢ = 0, 1
+    rock_falling = false
+    previous_rock_points = Stack{CartesianIndex{2}}()
+    height_offset = 0
+
+    # n = 2022
+    # n = 1_000_000_000_000
+    # n = 100_000
+    while rᵢ <= n || rock_falling
+        i  += 1
+        j = highest_rock(chamber)
+
+        # Every 1000 or so rows, remove the bottom 600 rows
+        if ((size(chamber, 1) - j) ÷ 1000) > 0
+            k = 500
+
+            # Shift entire matrix down
+            shift_down!(chamber, k)
+
+            # Recalculate highest rock
+            j = highest_rock(chamber)
+
+            # Update previous rock points
+            # previous_rock_points = previous_rock_points .+ Ref(CartesianIndex(k, 0))
+            rock_indices = deepcopy(previous_rock_points)
+            empty!(previous_rock_points)
+            while !isempty(rock_indices)
+                p = pop!(rock_indices)
+                push!(previous_rock_points, p + CartesianIndex(k, 0))
+            end
+
+            # add to height offset
+            height_offset += k
+            # draw(chamber)
+        end
+
+        # Alternate between falling and getting pushed by hot gas
+        if !iszero(mod(i, 2))
+            # rock is falling
+
+            if rock_falling
+                # rock is still falling
+                # update rock position
+                update_rock_position!(chamber, previous_rock_points, CartesianIndex(1, 0))
+            else
+                # a new rock needs to start falling
+                rock = ROCKS[mod1(rᵢ, length(ROCKS))]
+                j = highest_rock(chamber)
+
+                # rock begins falling 2 from left wall, and 3 above bottom
+                # draw initial rock state
+                empty!(previous_rock_points)
+                for p in rock.points
+                    p′ = p + CartesianIndex(j - rock.height - 3 - 1, 2)
+                    # println(p, " ", p′)
+                    chamber[p′] = true
+                    push!(previous_rock_points, p′)
+                end
+                rock_falling = true
+            end
+        else
+            # rock is being pushed
+            c = data[mod1(cld(i, 2), length(data))]
+            m = c == '<' ? CartesianIndex(0, -1) : CartesianIndex(0, 1)
+            # update rock position
+            update_rock_position!(chamber, previous_rock_points, m)
+
+            offset = CartesianIndex(1, 0)
+            if rock_obstructed(chamber, previous_rock_points, CartesianIndex(1, 0))
+                rock_falling = false
+                rᵢ += 1
+            end
+        end
+    end
+
+    return chamber_height(chamber) + height_offset + 1  # TODO: do we need to add one?
+end
+
+for n in (2022, 1_000_000_000_000)
+    for f in ("test.txt", "data17.txt")
+        print("Part 2 ($f, $n): ")
+        println(main2(f, n))
+    end
+end
+
+# println(main2(data))
