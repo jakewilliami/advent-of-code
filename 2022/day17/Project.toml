@@ -1,0 +1,4 @@
+[deps]
+AdventOfCode = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+MultidimensionalTools = "9aeeebde-7c74-460c-b059-016a4aa0f713"
