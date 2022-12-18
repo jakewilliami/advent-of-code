@@ -1,207 +1,165 @@
+# This was a fun problem!  We were given a bunch of ℝ³ coordinates to parse; each of those
+# representing a 1×1×1 unit of lava.
+#
+# In part 1, we were asked to found the "surface area", as it were, for the points give;
+# that is, count the number of edges for the points we were given that are exposed (don't
+# have any connecting points).  I immediately understood how to solve this nice, simple
+# problem; construct an array of these points, iterate over the points we were given, and
+# for each point, check its surrounding indices.  Unfortunately it took me 30 minutes to
+# complete part 1, but 20 minutes of that was debugging the cardinal_directions function
+# from my own package >:(
+#
+# Part 2 was interesting; we had to get the _outer_ surface area of the structure—so even if
+#  there were exposed bits, we would have to verify that they were on the outside of the
+# structure, rather than the inside.  I initially thought I would be clever and define the
+# following: any given coordinate that is empty in the array is internal if there are filled
+# points in all cardinal directions from it.  I got the answer 2003 using this method, but
+# it wasn't correct.  hen ensued about 4 hours of debugging (see 47a21ae)...  The real
+# answer for me was 2008.  The problem with this is that there were edge cases such as this:
+#   ###
+#   #.#
+#   ..#
+#   ###
+# The empty space in on the second line is actually external, however based on my
+# definition, this would be internal.  It was clear to me then that I had to figure out how
+# to essentially "flood fill" the empty space to see if it reaches the outside.  I did get a
+# bit of inspiration fro another's answer when trying to implement this.
+
+
 using AdventOfCode.Multidimensional
 
-using MultidimensionalTools
+using DataStructures
+using MultidimensionalTools: extrema_indices
 
-f = "data18.txt"
-# f = "test.txt"
 
-data = CartesianIndex{3}[CartesianIndex(Tuple(parse.(Int, split(l, ',')))) + CartesianIndex{3}() for l in eachline(f)]
-# data = [CartesianIndex(1, 1, 1), CartesianIndex(2, 1, 1)]
+### Parse input
 
-# println(data)
+function parse_input(data_file::String)
+    N = 3  # three-dimensional points
+    data = CartesianIndex{N}[]
 
-function main(data)
-    M = zeros(Bool, (last(Tuple(i)) for i in extrema_indices(Tuple.(data)))...)
-    for i in data
-        M[i] = true
+    for line in eachline(data_file)
+        coords = parse.(Int, split(line, ','))
+        i = CartesianIndex(Tuple(coords)) + CartesianIndex{N}()
+        push!(data, i)
     end
-    # return M
+
+    return data
+end
+
+
+### Part 1
+
+function construct_point_matrix(data::Vector{CartesianIndex{N}}) where {N}
+    # Construct a matrix of the size of the extrema indices
+    extrema_dims = extrema_indices(Tuple.(data))
+    sz = Tuple(last(Tuple(i)) for i in extrema_dims)
+    M = zeros(Bool, sz)
+    # Fill in the data
+    setindex!.(Ref(M), true, data)
+    return M
+end
+
+
+function part1(data::Vector{CartesianIndex{N}}) where {N}
+    M = construct_point_matrix(data)
     res = 0
-    for i in CartesianIndices(M)
-        # println("Checking $i ($(M[i]))")
-        M[i] || continue
-        # sum(map(abs, Tuple(i))) != dim
-        for d in cartesian_directions(ndims(M))
-            sum(map(abs, Tuple(d))) == 1 || continue
+
+    for i in data
+        # Check each cardinal adjacency
+        for d in cardinal_directions(ndims(M))
             j = i + d
-            # println("    Checking $j ($(hasindex(M, j)), $(a)))")
+
+            # If this adjacent value is on the edge (i.e., its coordinate does not exist in
+            # the matrix), or is is not filled, then it is exposed to air (and thus counts
+            # towards the surface area of the structure)
             if (!hasindex(M, j) || !M[j])
                 res += 1
-                # push!(counted, j)
             end
-            # hasindex(M, j) || continue
-            # M[j] || (res += 1)
         end
     end
+
     return res
 end
 
-println(main(data))
 
-des(i) = (d for d in cartesian_directions(i) if sum(map(abs, Tuple(d))) == 1)
+### Part 2
 
-adj(M, i) = (M[i + d] for d in des(ndims(M)) if hasindex(M, i + d))
+function is_external(
+    i::CartesianIndex{N},
+    points::Vector{CartesianIndex{N}},
+    in_points::Set{CartesianIndex{N}} = Set{CartesianIndex{N}}(),
+    out_points::Set{CartesianIndex{N}} = Set{CartesianIndex{N}}(),
+) where {N}
 
+    # If the result has been memoised, return immediately
+    i ∈ in_points && return false
+    i ∈ out_points && return true
 
-function flood_fill!(M, i, visited)
-    i ∉ visited || return
-    # hasindex(M, i) || return
-    M[i] == 0 || return
+    # Otherwise, we need to start looking at each adjacent point
+    seen_points = Set{CartesianIndex{N}}()
+    Q = Queue{CartesianIndex{N}}()
+    enqueue!(Q, i)
 
-    for d in des(ndims(M))
-        j = i + d
-        hasindex(M, j) || continue
-        M[j] = 2
-        flood_fill!(M, j, visited)
-        push!(visited, j)
-    end
-end
+    while !isempty(Q)
+        j = dequeue!(Q)
 
+        # Skip this index if it is part of the structure, or if we have already processed it
+        j ∈ points && continue
+        j ∈ seen_points && continue
 
-# In direction d of magintude m
-in_dir(d::CartesianIndex{N}, m::CartesianIndex{N}) where {N} = CartesianIndex(map(*, Tuple(d), Tuple(m)))
-Base.abs(i::CartesianIndex{N}) where {N} = CartesianIndex(map(abs, Tuple(i)))
-Base.inv(i::CartesianIndex{N}) where {N} = CartesianIndex((iszero(j) ? 1 : 0 for j in Tuple(i))...)
-# Base.(*)(i::CartesianIndex{N}, j::CartesianIndex{N}) where {N} = CartesianIndex(map(*, Tuple(i), Tuple(j)))
-midxs(i, j) = CartesianIndex(map(*, Tuple(i), Tuple(j)))
-des2(i) = (d for d in des(i) if all(map(>=(0), Tuple(d))))
+        push!(seen_points, j)
 
-function is_internal(M, i::CartesianIndex{N}) where {N}
-    # if it is on the edge, it is not internal
-    any(!hasindex(M, i + d) for d in des(ndims(M))) && return false  # TODO: can do this nicer with maths
-
-    ## TODO: there is an edge case where this isn't good enough.  Once possibility is to make a queue and keep finding adjacent empty, and run this functio
-
-    #=all_internal = Bool[false for _ in 1:ndims(M)]
-    for (j, a) in enumerate(axes(M))
-        this_axis_internal = sum(for k in a if k != Tuple(i)[a]) > 2
-        for j in a
+        # If we have seen sufficiently many points, we can safely say that they are not part
+        # of the structure, so must be external
+        if length(seen_points) > 2length(points)
+            for p in seen_points
+                push!(out_points, p)
+            end
+            return true
         end
-    end
-    return all(all_internal)=#
 
-    # r, c, d = Tuple(i)
-    # R, C, D = size(M)
-    ####println("  $i")
-    s = CartesianIndex(size(M))
-    all_internal = Bool[false for _ in 1:ndims(M)]
-    for (dᵢ, d) in enumerate(des2(ndims(M)))
-        # d == CartesianIndex(0, 0, 1) && continue
-        # i_start = max(abs(d), CartesianIndex{N}())
-        # i_start = midxs(abs(d), i) + midxs(inv(abs(d)), i)
-        i_start = midxs(abs(d), CartesianIndex{N}()) + midxs(inv(abs(d)), i)
-        a = M[i_start:(i - abs(d))]
-        # i_end = in_dir(d, s)
-        i_end = midxs(inv(d), i) + midxs(s, d)
-        b = M[(i + abs(d)):i_end]
-        ####println("    $i_start, $i_end")
-        ####println("    $(i_start:(i - abs(d))), $((i + abs(d)):i_end)")
-        # println(a)
-        # println(b)
-        if sum(a) > 0 && sum(b) > 0
-            # return true
-            all_internal[dᵢ] = true
+        for d in cardinal_directions(N)
+            enqueue!(Q, j + d)
         end
     end
 
-    return all(all_internal)
-
+    for p in seen_points
+        push!(in_points, p)
+    end
     return false
 end
 
 
-function main2(data)
-    M = zeros(Bool, (last(Tuple(i)) for i in extrema_indices(Tuple.(data)))...)
-    for i in data
-        M[i] = true
-    end
-    # M2 = Int8.(M)
-    # flood_fill!(M2, CartesianIndex{3}(), Set{CartesianIndex{3}}())
-    # return M2
+function part2(data::Vector{CartesianIndex{N}}) where {N}
+    # Memoise internal and external points to reduce computation time
+    in_points, out_points = Set{CartesianIndex{N}}(), Set{CartesianIndex{N}}()
 
-
-    #=sa = 0
-    for i in axes(M, 1), j in axes(M, 2), k in axes(M, 3)
-        sa += 4
-        if i > 1
-            sa -= 2 * M[i - 1, j, k]
-        end
-        if j > 1
-            sa -= 2 * M[i, j - 1, k]
-        end
-        if k > 1
-            sa -= 2 * M[i, j, k - 1]
-        end
-    end
-    return sa=#
-    seen = Set{CartesianIndex{ndims(M)}}()
-
-
-    # return M
     res = 0
-    for i in CartesianIndices(M)
-        ####println(i)
-        M[i] || continue
-        # all(hasindex(M, i + d) && M[i + d] for d in des(ndims(M))) && continue
-        # all(a for a in adj(M, i)) && continue
-        #=if all(a for a in adj(M, i)) && sum(1 for _ in adj(M, i)) == n_cardinal_adjacencies(ndims(M))
-            res += 1#n_cardinal_adjacencies(ndims(M))
-        end
-        continue=#
-
-        #=not_trapped = false
-        for d in des(ndims(M))
-            j = i + d
-            if !hasindex(M, j)
-                not_trapped = true
-                continue
-            end
-            if !M[j]
-                not_trapped = true
-                continue
-            end
-        end=#
-        # not_trapped || continue
-        for d in des(ndims(M))
-            j = i + d
-            # is_internal(M, j) && (println("      $j is internal"); continue)
-
-
-            #=if !hasindex(M, j)
-                res += 1
-                continue
-            end=#
-            # all(hasindex(M, j + d) && M[j + d] for d in des(ndims(M))) && continue
-            # all(a for a in adj(M, j)) && continue
-            # indices = extrema_indices(Tuple.(data))
-            # if all are properly in the matrix
-            #=if all(1 < k < size(M, s) for (s, k) in enumerate(Tuple(j)))
-                all()
-            end=#
-            j ∈ seen && continue
-            internal = is_internal(M, j)
-            # Count this edge is if it an outer edge, or if is is empty space (i.e., false)
-            count_this_side = !hasindex(M, j) || !M[j]
-            if internal && count_this_side
-                println("      $j is internal (count this side: $count_this_side)")
-            end
-            internal && push!(seen, j)
-            internal && continue
-            if count_this_side#!hasindex(M, j) || !M[j]
-                # println("$j counts for one")
-            # if !M[j]
-                res += 1
-            end
+    for i in data, d in cardinal_directions(N)
+        if is_external(i + d, data, in_points, out_points)
+            res += 1
         end
     end
+
     return res
-    # res2 =
-    return main(data) - res
 end
 
-println(main2(data))
 
-# NOT 3324
-# NOT 288
-# NOT 2003; TOO LOW
-# NOT 2029
+### Main
+
+function main()
+    data = parse_input("data18.txt")
+
+    # Part 1
+    part1_solution = part1(data)
+    @assert part1_solution == 3498
+    println("Part 1: $part1_solution")
+
+    # Part 2
+    part2_solution = part2(data)
+    @assert part2_solution == 2008
+    println("Part 2: $part2_solution")
+end
+
+main()
