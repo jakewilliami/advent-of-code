@@ -60,5 +60,6 @@ using Test
         @test direction(CartesianIndex(0, 0)) == CartesianIndex(0, 0)
         @test direction(CartesianIndex(1, 10)) == CartesianIndex(1, 1)
         @test direction(CartesianIndex(-69, 0)) == CartesianIndex(-1, 0)
+        @test all(sum(map(abs, Tuple(d))) == 1 for d in cardinal_directions(3))
     end
 end

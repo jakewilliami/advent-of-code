@@ -197,11 +197,9 @@ See also: [`cartesian_directions`](@ref).
 function cardinal_directions(dim::I; include_origin::Bool = false) where {I<:Integer}
     dir_itr = _cartesian_directions(dim, include_origin = include_origin)
 
-    # The sum of the absolute values of the elements in a diagonal coordinate
-    # is always equal to the number of dimensions because, in a diagonal coordinate,
-    # all the elements have a value of either 1 or -1.  The inverse of this would
-    # be to check if any of the coordinates in the CartesianIndex are zero.
-    fltr(i::CartesianIndex{N}) where {N} = sum(map(abs, Tuple(i))) != dim
+    # The cardinal directions is a coordinate with exactly one offset (all other
+    # dimensions are zero)
+    fltr(i::CartesianIndex{N}) where {N} = isone(sum(map(abs, Tuple(i))))
 
     return CartesianIndex{dim}[i for i in dir_itr if fltr(i)]
 end
