@@ -1,0 +1,5 @@
+[deps]
+MacroTools = "1914dd2f-81c6-5fcd-8719-6d5c9610ff09"
+Reduce = "93e0c654-6965-5f22-aba9-9c1ae6b3c259"
+SymEngine = "123dc426-2d89-5057-bbad-38513e3affd8"
+Symbolics = "0c5d862f-8b57-4792-8d23-62f2024744c7"
