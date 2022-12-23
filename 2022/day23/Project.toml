@@ -1,0 +1,4 @@
+[deps]
+AdventOfCode = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
+MultidimensionalTools = "9aeeebde-7c74-460c-b059-016a4aa0f713"
+StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
