@@ -23,6 +23,13 @@ function build_lookup_table(L::CircularList.List{T}) where T
     return lookup
 end
 
+# e.g., norm(270, 180) -> -90
+function norm(a::Int, b::Int)
+    a ∈ -b:b && return a
+    c = 2b
+    return a - c * fld(a + b, c)
+end
+
 function sort_list!(A, lookup; modifier = 1)
 
 
@@ -39,7 +46,10 @@ function sort_list!(A, lookup; modifier = 1)
         delete!(A)  # delete current head from list
         # shift!(A, abs(w.data), sign(w.data) == 1 ? :forward : :backward)  # shift current head position
         # shift!(A, mod(w.data, length(data)), sign(w.data) == 1 ? :forward : :backward)  # shift current head position
-        shift!(A, mod((w.data) * modifier, length(A)), sign(w.data) == 1 ? :forward : :backward)  # shift current head position
+        i = mod(abs(w.data) * modifier, length(A))  # - 1
+        i = norm(w.data * modifier, div(length(A) - 1, 2))
+        # shift!(A, i, sign(w.data) == 1 ? :forward : :backward)  # shift current head position
+        shift!(A, i, sign(i) == 1 ? :forward : :backward)  # shift current head position
         insert!(A, w.data)
         # println("$(w.data) -> $(mod((w.data), length(A))) => $([a for a in A])")
         # shift!(A, abs(v) - 1, sign(v) == 1 ? :backward : :forward)
@@ -55,9 +65,12 @@ function grove_coordinates_sum!(A; modifier = 1)
     while !iszero(current(A).data)
         forward!(A)
     end
+    # forward!(A)
 
     ans = 0
     for _ in 1:3
+        i = 1000
+        # i = norm(1000, length(A) ÷ 2)
         shift!(A, 1000, :forward)
         ans += current(A).data * modifier
     end
@@ -71,6 +84,8 @@ function main(data)
     A = circularlist(data)
     lookup = build_lookup_table(A)
     sort_list!(A, lookup)
+
+    println(A)
 
     # forward!(A)
     # return A
@@ -86,9 +101,11 @@ println(main(data))
 
 function main2(data)
     key = 811589153
+    # mag, key = divrem(811589153, length(data))
+    # key = 811589153 % length(data)
     data = [d * key for d in data]
     # println(data[1])
-    A = circularlist(data)
+    A = circularlist(data; capacity = length(data))
     # println(A)
     lookup = build_lookup_table(A)
     # println(lookup)
@@ -114,12 +131,17 @@ function main2(data)
         # sort_list!(A, lookup, modifier = key)
         A = sort_list!(A, lookup)
         # forward!(A)
-        # jump!(A, lookup[1])
+        jump!(A, lookup[1])
         # println("!!!: $([a for a in A])")
     end
-    # println(lookup)
 
-    # println(A)
+    # println(lookup)
+    # while !iszero(current(A).data)
+        # forward!(A)
+    # end
+
+    println(A)
+    # return A
     return grove_coordinates_sum!(A)
     return grove_coordinates_sum!(A, modifier = key)
 end

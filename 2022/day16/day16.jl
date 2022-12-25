@@ -1,6 +1,7 @@
 # I have a list of nodes (called "AA", "BB", and so on).  Each node is a valve, and each valve has a flow rate, and a list of nodes that you can access from the current node.  We have only 30 minutes to traverse these nodes and release as much pressure as possible, according to the valves' flow rate, and each valve/node that we visit takes 1 minute to walk to, and another minute if we need to open it.  Some nodes have a flow rate of zero, so presumably they do not need to be traversed.
 
 
+using OrderedCollections
 using JuMP, HiGHS
 
 f = "data16.txt"
@@ -33,23 +34,18 @@ for line in eachline(f)
 end
 
 
-function linear_solve(valves::Valves)
-    # model = Model(GLPK.Optimizer)
-    # m = Model(GLPK.Optimizer)
-    # m = Model(Cbc.Optimizer)
+function linear_solve!(valves::Valves, time_limit::Int)
     model = Model(HiGHS.Optimizer)
     set_silent(model)
-    # m = Model(MosekTools.Optimizer)
 
 
-
-    ## Take four
     ## Variables
 
     # At what minute the valve was opened
-    @variable(model, T[keys(valves), 1:30], Bin)
+    @variable(model, T[keys(valves), 1:time_limit], Bin)
     # Moved to valve at t minute
-    @variable(model, M[keys(valves), 1:30], Bin)
+    @variable(model, M[keys(valves), 1:time_limit], Bin)
+
 
     ## Constraints
 
@@ -59,11 +55,11 @@ function linear_solve(valves::Valves)
     end
 
     # You can only do one action per minute (move to valve _or_ open it)
-    for t in 1:30
+    for t in 1:time_limit
         @constraint(model, sum(T[:, t]) + sum(M[:, t]) <= 1)
     end
 
-    for t in 2:30
+    for t in 2:time_limit
         for (n, v) in valves
             # Only open a valve if you have moved to it in the minute immediately prior
             @constraint(model, T[n, t] <= M[n, t - 1])
@@ -77,47 +73,32 @@ function linear_solve(valves::Valves)
     ## Initial conditions
 
     start = last(first(valves))
-    # println(start)
     @constraint(model, sum(M[n, 1] for n in start.connected_valves) == 1)
 
 
     ## Objective function
-    # @objective(m, Max, sum(v.flow_rate * (30 - t[n]) * x[n] for (n, v) in valves))
-    # @objective(model, Max, sum(v.flow_rate .* T[n, 30] for (n, v) in valves))
-    #=sum(valves) do (n, v)
-        v.flow_rate * (30 - only(findall(==(1), T[n, :])))
-    end=#
-    # @objective(model, Max, sum(v.flow_rate * (30 - only(findall(==(1), T[n, :]))) for (n, v) in valves))
 
-    # factor =
-    # factor = SVector{30}(29:-1:0)
-    #=factor = [29:-1:0;]
-    OV = Dict()
-    for (n, v) in valves
-        push!(OV, n => factor .* v.flow_rate)
-    end=#
-    # @objective(model, Max, sum((v.flow_rate .* [29:-1:0;])'T[n, :] for (n, v) in valves))
     @objective(model, Max, sum(valves) do (n, v)
-                   (v.flow_rate .* [29:-1:0;])'T[n, :]
+                   (v.flow_rate .* [(time_limit - 1):-1:0;])'T[n, :]
                end)
     optimize!(model)
 
 
+    ## Set solution in valves dict
 
-    for t in 1:30
-        if sum(value.(T[:, t])) > 0
-            for v in keys(valves)
-                if value(T[v, t]) > 0
-                    println("Period $t: opening valve $v")
-                end
-            end
+    for t in 1:time_limit
+        println(value.(T[:, t]))
+        n = findfirst(==(1), [value(x) for x in T[:, t]])
+        if !isnothing(n)
+            v = valves[n]
+            println("Period $t: opening valve $n")
+            v.open = true
+            v.opened_at = t
         end
-        if sum(value.(M[:, t])) > 0
-            for v in keys(valves)
-                if value(M[v, t]) > 0
-                    println("Period $t: moving to valve $v")
-                end
-            end
+
+        n = findfirst(==(1), [value(x) for x in M[:, t]])
+        if !isnothing(n)
+            println("Period $t: moving to valve $n")
         end
     end
 
@@ -132,20 +113,16 @@ function main(valves::Valves)
     time_limit = 30
     mins = 2  # First move (one-indexed) is taken by moving to the first valve
 
-    #=for (n, m) in (("DD", 2), ("BB", 5), ("JJ", 9), ("HH", 17), ("EE", 21), ("CC", 24))
-        valves[n].open = true
-        valves[n].opened_at = m
-    end=#
-
-    # return calc_pressure_released(valves, time_limit)
-
-    # The aim is to start at the valve that maximises flow rate and number of connecting
-    # valves, and see where that takes us
+    # Sort by valve that maximises flow rate and number of connecting tunnels
     valves = sort(valves, by = name -> (length(valves[name].connected_valves), valves[name].flow_rate), rev = true)
-    inefficient = Set{String}(name for (name, v) in valves if iszero(v.flow_rate))
-    # filter!(p -> !iszero(last(p).flow_rate), valves)
 
-    return linear_solve(valves)
+    println(calc_pressure_released(valves, time_limit))
+    println([v.opened_at for (_, v) in valves])
+    linear_solve!(valves, time_limit)
+    println(valves)
+
+    println([v.opened_at for (_, v) in valves])
+    println(calc_pressure_released(valves, time_limit))
 end
 
 println(main(data))

@@ -49,9 +49,9 @@ end
 
 println(data)
 
-# using GLPK, JuMP, HiGHS#, Clp, Cbc, MosekTools
+using GLPK, JuMP, HiGHS#, Clp, Cbc, MosekTools
 
-#=function linear_solve_orig(blueprint::Blueprint)
+function linear_solve_old_old(blueprint::Blueprint)
     model = Model(GLPK.Optimizer)
 
     # Ore is finite
@@ -89,7 +89,7 @@ println(data)
     return value(x_geode)
 end
 
-function linear_solve_oldish(blueprint::Blueprint)
+function linear_solve_old(blueprint::Blueprint)
     model = Model(GLPK.Optimizer)
     # set_silent(model)
     # model = Model(HiGHS.Optimizer)
@@ -176,7 +176,7 @@ function linear_solve_oldish(blueprint::Blueprint)
     return value(x_geode)
 end
 
-function linear_solve(blueprint::Blueprint)
+function linear_solve_oldish(blueprint::Blueprint)
     model = Model(GLPK.Optimizer)
     # set_silent(model)
     # model = Model(HiGHS.Optimizer)
@@ -225,7 +225,136 @@ function linear_solve(blueprint::Blueprint)
     optimize!(model)
 
     return value(geodes_open)
-end=#
+end
+
+#=
+Let's define the following variables:
+
+x_o: the number of ore robots we build
+x_c: the number of clay robots we build
+x_o_b: the number of obsidian robots we build
+x_g: the number of geode robots we build
+
+We want to maximize the number of geode robots we build (x_g) within 24 minutes.
+
+The constraints are as follows:
+
+    The number of ore robots we build must be less than or equal to the number of ore we have available: x_o <= number of ore
+    The number of clay robots we build must be less than or equal to the number of clay we have available: x_c <= number of clay
+    The number of obsidian robots we build must be less than or equal to the number of obsidian we have available: x_o_b <= number of obsidian
+
+In addition, we need to consider the time it takes to build each type of robot and the resources required to build them. For example, if we want to build an ore robot, it will take 1 minute and cost 2 ore (according to blueprint 2). We need to account for this in our constraints.
+
+The constraints for building robots can be expressed as follows:
+
+    The number of ore robots we can build is limited by the time and resources available: x_o <= (24 minutes - time spent building other robots) / time to build an ore robot and x_o <= (number of ore - resources spent building other robots) / cost of an ore robot in ore
+    The number of clay robots we can build is limited by the time and resources available: x_c <= (24 minutes - time spent building other robots) / time to build a clay robot and x_c <= (number of clay - resources spent building other robots) / cost of a clay robot in clay
+    The number of obsidian robots we can build is limited by the time and resources available: x_o_b <= (24 minutes - time spent building other robots) / time to build an obsidian robot and x_o_b <= (number of obsidian - resources spent building other robots) / cost of an obsidian robot in obsidian
+    The number of geode robots we can build is limited by the time and resources available: x_g <= (24 minutes - time spent building other robots) / time to build a geode robot and x_g <= (number of geode - resources spent building other robots) / cost of a geode robot in geode
+
+Finally, we need to consider the time it takes for each robot to collect its respective resource. For example, if we have 2 ore robots, they will collect 2 ore per minute. We need to account for this in our constraints as well.
+
+The constraints for resource collection can be expressed as follows:
+
+    The number of ore we can collect is limited by the number of ore robots we have: number of ore <= x_o * ore collected per minute
+    The number of clay we can collect is limited by the number of clay robots we have: number of clay <= x_c * clay collected per minute
+    The number of obsidian we can collect is limited by the number of obsidian robots we have: number of obsidian <= x_o_b * obsidian collected per minute
+    The number of geode we can collect is limited by the number of geode robots we have: number of geode <= x_g * geode collected per minute
+
+Putting it all together, the linear programming problem can be expressed as follows:
+
+Maximize x_g
+
+=============================================
+
+We can represent the problem as a linear program where the decision variables are the number of ore-collecting robots ($x_1$), clay-collecting robots ($x_2$), obsidian-collecting robots ($x_3$), and geode-collecting robots ($x_4$) that are built at each minute. The objective is to maximize the number of geode-collecting robots built, subject to the constraints that the number of each type of robot built at each minute is non-negative and the total cost of the robots built at each minute does not exceed the available resources.
+
+The constraints can be expressed as follows:
+
+$$x_1 \ge 0, x_2 \ge 0, x_3 \ge 0, x_4 \ge 0$$
+
+$$x_1 \cdot cost_{ore,1} + x_2 \cdot cost_{clay,1} + x_3 \cdot cost_{obsidian,1} + x_4 \cdot cost_{geode,1} \le resources_{ore,1}$$
+
+$$x_1 \cdot cost_{ore,2} + x_2 \cdot cost_{clay,2} + x_3 \cdot cost_{obsidian,2} + x_4 \cdot cost_{geode,2} \le resources_{ore,2}$$
+
+$$...$$
+
+$$x_1 \cdot cost_{ore,24} + x_2 \cdot cost_{clay,24} + x_3 \cdot cost_{obsidian,24} + x_4 \cdot cost_{geode,24} \le resources_{ore,24}$$
+
+Where $cost_{ore,t}$ is the cost of building an ore-collecting robot at minute $t$, $resources_{ore,t}$ is the number of ore resources available at minute $t$, and so on for the other resource types.
+
+The objective function is:
+
+$$\max x_4$$
+
+The linear program can then be expressed as follows:
+
+$$\begin{aligned} \text{maximize} \qquad & x_4 \ \text{subject to} \qquad & x_1 \ge 0 \ & x_2 \ge 0 \ & x_3 \ge 0 \ & x_4 \ge 0 \ & x_1 \cdot cost_{ore,1} + x_2 \cdot cost_{clay,1} + x_3 \cdot cost_{obsidian,1} + x_4 \cdot cost_{geode,1} \le resources_{ore,1} \ & x_1 \cdot cost_{ore,2} + x_2 \cdot cost_{clay,2} + x_3 \cdot cost_{obsidian,2} + x_4 \cdot cost_{geode,2} \le resources_{ore,2} \ & ... \ & x_1 \cdot cost_{ore,24} + x_2 \cdot cost_{clay,24} + x_3 \cdot cost_{obsidian,24} + x_4 \cdot cost_{geode,24} \le resources_{ore,24} \ \end{aligned}$$
+=#
+
+function linear_solve(blueprint::Blueprint)
+    model = Model(GLPK.Optimizer)
+    # set_silent(model)
+    # model = Model(HiGHS.Optimizer)
+
+    # @variable(model, t >= 0, Int)
+
+    # Variables: number of robots to build
+    @variable(model, x1 >= 0, Int)  # ore
+    @variable(model, x2 >= 0, Int)  # clay
+    @variable(model, x3 >= 0, Int)  # obsidian
+    @variable(model, x4 >= 0, Int)  # geode
+    # @variable(model, x1[1:24] >= 0, Int)  # ore
+    # @variable(model, x2[1:24] >= 0, Int)  # clay
+    # @variable(model, x3[1:24] >= 0, Int)  # obsidian
+    # @variable(model, x4[1:24] >= 0, Int)  # geode
+
+    # @variable(model, y1[1:24] >= 0, Int)
+    # @variable(model, y2[1:24] >= 0, Int)
+    # @variable(model, y3[1:24] >= 0, Int)
+
+    # Number of geodes at minutes t
+    @variable(model, w[1:24], Int)
+
+    @variable(model, resources[(:ore, :clay, :obsidian), 1:24])
+
+    # cost = Dict{Symbol, Int}(
+        # :ore
+    # )
+
+    # @variable(model, cost[1:24])
+    # TODO: base case (start with robot)
+    # @constraint(model, x1 == 1)
+    # @constraint(model, x[1] == 1)
+    @constraint(model, resources[:ore, 1] == 1)
+
+    # @objective(model, Max, x4)
+    @objective(model, Max, w[24])
+
+    # robot type => something
+    D = Dict(:ore => x1, :clay => x2, :obsidian => x3, :geode => x4)
+    # TODO: case where i == 1
+    for i in 2:24
+        for rt in (:ore, :clay, :obsidian)  # robot type
+            # @constraint(model, <= resources[m, i])
+            cost = getfield(blueprint, rt)
+            @constraint(model, resources[rt, i] <= getfield(cost, rt))
+            @constraint(model, resources[rt, i] == (D[rt] + resources[rt, i - 1]))
+        end
+    end
+
+    # for i in 2:24
+# end
+
+x1 · cost ore,1 + x2 · costclay,1 + x3 · costobsidian,1 + x4 · costgeode,1 ≤ resourcesore,1
+
+
+    @constraint(model, w[1] <= x4)
+    for i in 2:24
+        # TODO: define const functions like this that define how much resource we get from each robot
+        @constraint(model, w[i] == (w[i - 1] + x4))
+    end
+end
 
 mutable struct Resources
     ore::Int
@@ -320,18 +449,95 @@ function optimise_blueprint(blueprint::Blueprint)
     while !isempty(Q)
         S = dequeue!(Q)
 
-        # Skip if we have seen this state
-        S ∈ seen_states && continue
-        push!(seen_states, S)
-
-        # Collect resources with the current robots we have
-        collect_resources!(S)
-
         # Set max geodes cracked
         max_geodes = max(max_geodes, S.geodes_opened)
 
         # Stop if we have reached the time limit
         iszero(S.time_remaining) && continue
+
+        # Something
+        # Co, ore_cost,
+        # Cc, clay_cost,
+        # Co1, obsidian_cost_ore,
+        # Co2, obsidian_cost_clay,
+        # Cg1, geode_cost_ore,
+        # Cg2, geode_cost_clay,
+        # ores = Tuple(getfield(S.resources, rₙ) for rₙ in (:ore, :clay, :obsidian, :geode))
+
+        #=most_ore = maximum((blueprint.ore.ore, blueprint.clay.ore, blueprint.obsidian.ore, blueprint.geode.ore))
+        if S.robots.ore >= most_ore
+            S.robots.ore = most_ore
+        end
+        if S.robots.clay >= blueprint.obsidian.clay
+            S.robots.clay = blueprint.obsidian.clay
+        end
+        if S.robots.obsidian >= blueprint.geode.clay
+            S.robots.obsidian = blueprint.geode.clay
+        end
+        if S.resources.ore >= (S.time_remaining * most_ore - S.robots.ore * (S.time_remaining - 1))
+            S.resources.ore = S.time_remaining * most_ore - S.robots.ore * (S.time_remaining - 1)
+        end
+        if S.resources.clay >= (S.time_remaining * blueprint.obsidian.clay  - S.robots.clay * (S.time_remaining - 1))
+            S.resources.clay = S.time_remaining * blueprint.obsidian.clay  - S.robots.clay * (S.time_remaining - 1)
+        end
+        if S.resources.obsidian >= (S.time_remaining * blueprint.geode.clay - S.robots.obsidian * (S.time_remaining - 1))
+            S.resources.obsidian = S.time_remaining * blueprint.geode.clay - S.robots.obsidian * (S.time_remaining - 1)
+        end=#
+
+        # Skip if we have seen this state
+        S ∈ seen_states && continue
+        push!(seen_states, S)
+        return
+
+        #=if iszero(mod(length(seen_states), 1000000))
+            println(S.time_remaining, " ", max_geodes, " ", length(seen_states))
+        end
+        @assert(S.resources.ore >= 0 && S.resources.clay >= 0 && S.resources.obsidian >= 0 && S.geodes_opened >= 0, S)
+
+        S′ = State(
+            Resources(S.resources.ore + S.robots.ore, S.resources.clay + S.robots.clay, S.resources.obsidian + S.robots.obsidian),
+            deepcopy(S.robots), S.geodes_opened + S.robots.geode, S.time_remaining - 1
+        )
+        enqueue!(Q, S′)
+
+        # queue_available!(Q, S, blueprint)
+
+        if S.resources.obsidian >= blueprint.ore.ore
+            S′ = State(
+                Resources(S.resources.ore - blueprint.ore.ore + S.robots.ore, S.resources.clay + S.robots.clay, S.resources.obsidian + S.robots.obsidian),
+                Robots(S.robots.ore + 1, S.robots.clay, S.robots.obsidian, S.robots.geode),
+                S.geodes_opened + S.robots.geode, S.time_remaining - 1
+            )
+            enqueue!(Q, S′)
+        end
+        if S.resources.ore >= blueprint.clay.ore
+            S′ = State(
+                Resources(S.resources.ore - blueprint.clay.ore + S.robots.ore, S.resources.clay + S.robots.clay, S.resources.obsidian + S.robots.obsidian),
+                Robots(S.robots.ore, S.robots.clay + 1, S.robots.obsidian, S.robots.geode),
+                S.geodes_opened + S.robots.geode, S.time_remaining - 1
+            )
+            enqueue!(Q, S′)
+        end
+        if S.resources.ore >= blueprint.obsidian.ore && S.resources.clay >= blueprint.obsidian.clay
+            S′ = State(
+                Resources(S.resources.ore - blueprint.obsidian.ore + S.robots.ore, S.resources.clay - blueprint.obsidian.clay + S.robots.clay, S.resources.obsidian + S.robots.obsidian),
+                Robots(S.robots.ore, S.robots.clay, S.robots.obsidian + 1, S.robots.geode),
+                S.geodes_opened + S.robots.geode, S.time_remaining - 1
+            )
+            enqueue!(Q, S′)
+        end
+        if S.resources.ore >= blueprint.geode.ore && S.resources.clay >= blueprint.geode.clay
+            S′ = State(
+                Resources(S.resources.ore - blueprint.geode.ore + S.robots.ore, S.resources.clay - blueprint.geode.clay + S.robots.clay, S.resources.obsidian + S.robots.obsidian),
+                Robots(S.robots.ore, S.robots.clay, S.robots.obsidian, S.robots.geode + 1),
+                S.geodes_opened + S.robots.geode, S.time_remaining - 1
+            )
+            enqueue!(Q, S′)
+        end=#
+
+
+        # Collect resources with the current robots we have
+        collect_resources!(S)
 
         # Queue any combination of new robots we can make
         queue_available!(Q, S, blueprint)
@@ -341,9 +547,9 @@ function optimise_blueprint(blueprint::Blueprint)
 end
 
 function main(data)
-    # return linear_solve(data[1])
+    return linear_solve(data[1])
 
-    return optimise_blueprint(data[1])
+    # return optimise_blueprint(data[1])
 end
 
 println(main(data))

@@ -1,6 +1,7 @@
 using AdventOfCode.Multidimensional
 
 using DataStructures
+using OrderedCollections
 
 f = "data17.txt"
 # f = "test.txt"
@@ -8,7 +9,7 @@ f = "data17.txt"
 data = strip(read(f, String))
 
 struct Rock
-    alias::String
+    alias::Symbol
     height::Int
     width::Int
     points::Vector{CartesianIndex{2}}  # top left is (1, 1)
@@ -17,7 +18,7 @@ end
 const ROCKS = Rock[
     # Minus shape
     Rock(
-        "minus", 1, 4,
+        :minus, 1, 4,
         CartesianIndex{2}[
             CartesianIndex(1, 1),
             CartesianIndex(1, 2),
@@ -31,7 +32,7 @@ const ROCKS = Rock[
     # ###
     # .#.
     Rock(
-        "plus", 3, 3,
+        :plus, 3, 3,
         CartesianIndex{2}[
             CartesianIndex(1, 2),
             CartesianIndex(2, 1),
@@ -46,7 +47,7 @@ const ROCKS = Rock[
     # ..#
     # ###
     Rock(
-        "el", 3, 3,
+        :el, 3, 3,
         CartesianIndex{2}[
             CartesianIndex(1, 3),
             CartesianIndex(2, 3),
@@ -62,7 +63,7 @@ const ROCKS = Rock[
     # #
     # #
     Rock(
-        "aye", 4, 1,
+        :aye, 4, 1,
         CartesianIndex{2}[
             CartesianIndex(1, 1),
             CartesianIndex(2, 1),
@@ -75,7 +76,7 @@ const ROCKS = Rock[
     # ##
     # ##
     Rock(
-        "square", 2, 2,
+        :square, 2, 2,
         CartesianIndex{2}[
             CartesianIndex(1, 1),
             CartesianIndex(1, 2),
@@ -300,28 +301,53 @@ function shift_down!(A::Matrix{T}, n::Int) where {T}
     return A
 end
 
+# Does a matrix A have a repeating sequence of rows size n in it?
+function repeating_sequence(A::Matrix{T}, n::Int) where {T}
+    # take the top n rows from the matrix
+    seq = view(A, (size(A, 1) - n):n, :)
+    for i in 1:(size(A, 1) - 2n)
+        seq′ = view(A, i:(i + n), :)
+        if seq′ == seq
+            return i:(i + n)
+        end
+    end
+
+    return nothing
+end
+
 
 # TODO: optimisation: ignore all below row that is fulled up
-# TODO: repeated patters
+# TODO: repeated patterns
 function main2(f, n)
     data = strip(read(f, String))
-    chamber = zeros(Bool, 1500, 7)
+    # As we have a looping input and a constant set of rocks that we iterate over,
+    # we must have repeating cycles
+    # cycle_length = length(data) * length(ROCKS)
+    # chamber = zeros(Bool, 1500, 7)
+    chamber = zeros(Bool, 100_000, 7)
     chamber[size(chamber, 1), :] .= true  # floor
     i, rᵢ = 0, 1
     rock_falling = false
     previous_rock_points = Stack{CartesianIndex{2}}()
     height_offset = 0
+    drop_after = 70_000  # drop bottom rows after height of tower reaches this
+    found_repeating, first_seq_range = false, nothing
+    # keep track of pairs of jet instruction and rock shape
+    # how many rocks stopped and height of tower when last say this pair
+    pairs_seen = OrderedDict{Tuple{Int, Symbol}, Tuple{Int, Int}}()
+    most_recently_seen_pairs = Vector{Tuple{Int, Symbol}}()
 
     # n = 2022
     # n = 1_000_000_000_000
     # n = 100_000
     while rᵢ <= n || rock_falling
-        i  += 1
+        i += 1
+        # i  = mod1(i + 1, length(data))
         j = highest_rock(chamber)
 
         # Every 1000 or so rows, remove the bottom 600 rows
-        if ((size(chamber, 1) - j) ÷ 1000) > 0
-            k = 500
+        if ((size(chamber, 1) - j) ÷ drop_after) > 0
+            k = drop_after ÷ 2
 
             # Shift entire matrix down
             shift_down!(chamber, k)
@@ -356,6 +382,26 @@ function main2(f, n)
                 rock = ROCKS[mod1(rᵢ, length(ROCKS))]
                 j = highest_rock(chamber)
 
+                # Check if we have reached a pattern; look at the last 25 for a pattern
+                if rᵢ > 25
+                    q = mod1(cld(i, 2), length(data))
+
+                    if all(pairs_seen.vals[25 - mᵢ + 1] == most_recently_seen_pairs[mᵢ] for mᵢ in 1:25)
+
+                        last_rᵢ, last_j = pairs_seen[(q, rock.alias)]
+                        n_rocks_in_cycle = rᵢ - last_rᵢ
+                        n_cycles_rem, rem_indiv = divrem(n - rᵢ, n_rocks_in_cycle)
+                        height_offset = n_cycles_rem * n_rocks_in_cycle
+                        i = n - rem_indiv
+                        println("this_rᵢ: $rᵢ, last_rᵢ: $last_rᵢ, last_j: $last_j, n_cycles_rem: $n_cycles_rem, rem_indiv: $rem_indiv, height_offset: $height_offset, new i: $i")
+                        return
+                    end
+
+                    @assert length(most_recently_seen_pairs) == 25 "$(length(most_recently_seen_pairs))"
+                    popfirst!(most_recently_seen_pairs)
+                end
+
+
                 # rock begins falling 2 from left wall, and 3 above bottom
                 # draw initial rock state
                 empty!(previous_rock_points)
@@ -369,20 +415,57 @@ function main2(f, n)
             end
         else
             # rock is being pushed
-            c = data[mod1(cld(i, 2), length(data))]
+            q = mod1(cld(i, 2), length(data))
+            c = data[q]
+            # c = data[div(i, 2)]
             m = c == '<' ? CartesianIndex(0, -1) : CartesianIndex(0, 1)
+
             # update rock position
             update_rock_position!(chamber, previous_rock_points, m)
 
+            # check if rock is at rest
             offset = CartesianIndex(1, 0)
             if rock_obstructed(chamber, previous_rock_points, CartesianIndex(1, 0))
                 rock_falling = false
-                rᵢ += 1
+                rᵢ  += 1
+
+                # Update rock/jet pattern pair seen
+                j = highest_rock(chamber)
+                rock = ROCKS[mod1(rᵢ, length(ROCKS))]
+                push!(pairs_seen, (q, rock.alias) => (rᵢ, size(chamber, 1) - j))
+                push!(most_recently_seen_pairs, (q, rock.alias))
             end
+
+            # every so often, check if there have been any repeating patterns
+            #=if !found_repeating && iszero(mod(rᵢ, 100length(ROCKS)))
+                j = highest_rock(chamber)
+                for pat_len in 1:(j ÷ 2)
+                    s = repeating_sequence(chamber, pat_len)
+                    if !isnothing(s)
+                        println("REPEATING SEQUENCE!  $s")
+                        found_repeating = true
+                        first_seq_range = s
+                        return s
+                    end
+                end
+            end=#
         end
     end
 
-    return chamber_height(chamber) + height_offset + 1  # TODO: do we need to add one?
+    #=j = highest_rock(chamber)
+    for pat_len in 1:(j ÷ 2)
+        s = repeating_sequence(chamber, pat_len)
+        if !isnothing(s)
+            println("REPEATING SEQUENCE!  $s")
+            found_repeating = true
+            first_seq_range = s
+            return s
+        end
+    end=#
+
+    # return chamber
+
+    return chamber_height(chamber) + height_offset
 end
 
 for n in (2022, 1_000_000_000_000)
