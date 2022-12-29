@@ -1,4 +1,3 @@
-using Base: DirectOrdering, hash_uint
 # Today was pretty simple, but I took a while to do it because I had some silly bugs which
 # were a little tricky to debug.
 #
@@ -13,6 +12,8 @@ using Base: DirectOrdering, hash_uint
 
 
 using AdventOfCode.Multidimensional
+
+using Base: DirectOrdering, hash_uint
 
 using MultidimensionalTools
 using StatsBase
