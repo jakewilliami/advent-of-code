@@ -1,5 +1,25 @@
+# In today's problem, we were given a map; a grid of integers each representing the height
+# of a tree within a forest.  This was easy to parse reusing some code I wrote in 2020 (now
+# in my common AdventOfCode.jl package).
+#
+# Part 1 asked us to count the number of trees visible from outside of the grid (which is to
+# say, how many trees have a direct line across which the trees are less than the height of
+# the tree).
+#
+# The second part gave us a calculation of a "scenic score" (taking into account the first
+# tree in each direction that blocks our line of sight), and find the tree with the highest
+# scenic score.
+#
+# This was pretty straight-forward, as I had some nice functions that I could utilise from
+# previous code, and as ever, Julia's multidimensional programming is very straight forward.
+
+
 using AdventOfCode.Multidimensional
 
+
+### Part 1
+
+const DIRECTIONS = cardinal_directions(2)
 
 # Increment an index further away from the origin, e.g., (1, -3) -> (2, -4)
 _move_further_from_origin(i::CartesianIndex{N}) where {N} = i + direction(i)
@@ -28,9 +48,6 @@ function global_adjacencies(M::Matrix{T}, i::CartesianIndex{N}, direction_modifi
     return D
 end
 
-
-# Part 1
-
 function part1(map::Matrix{T}) where {T <: Number}
     res= 0
     for i in CartesianIndices(map)
@@ -42,7 +59,7 @@ function part1(map::Matrix{T}) where {T <: Number}
 end
 
 
-# Part 2
+### Part 2
 
 function part2(map::Matrix{T}) where {T <: Number}
     scenic_scores = Vector{T}(undef, prod(size(map)))
@@ -66,9 +83,7 @@ function part2(map::Matrix{T}) where {T <: Number}
 end
 
 
-# Main
-
-const DIRECTIONS = cardinal_directions(2)
+### Main
 
 function main()
     data = readlines_into_int_matrix("data08.txt")

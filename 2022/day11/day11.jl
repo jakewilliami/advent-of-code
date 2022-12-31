@@ -1,4 +1,31 @@
-# Parse input
+# I really enjoyed today!  Parsing was a little tricky; we were given some interestingly
+# formatted data for eight monkeys.  Essentially, monkeys are playing with out things; each
+# monkey had a number of starting items (each item is identifiable with an integer).  Each
+# monkey also has an operation: for each item they have, they perform an operation on it,
+# and hand it to one of two monkeys depending on the item's value after the operation.  The
+# item changes value according to the operation and goes to the appropriate monkey.
+#
+# For part one, we had to simulate the monkeys throwing our items around for 20 rounds.
+# Importantly, for part 1, each monkey divides the item's value by 3 after their operation,
+# before passing it on to the next monkey.  This was simply enough to simulate.
+#
+# Part two made me think for a while!  Everyone's input has one money who is squaring the
+# items before passing it on.  However, we no longer divide by 3 after performing the
+# operation on the items.  Therefore, the items' values grow exponentially large (just like
+# the fishes from last year!  Classic Eric).  I thought for a while, and we must find some
+# way of reducing the values of the items whilst keeping all important information (i.e., is
+# the value still divisible correctly any of the monkeys).  I realised that, before any
+# monkey passes the item on, we can divide the value by the least common multiple of all
+# monkeys' divisors (i.e., the value they divide by to perform the test), as this will
+# correctly reduce the size of the input while keeping enough information to process
+# correctly!  Indeed, this is what I implemented, and it worked correctly.  I know this is
+# probably rather trivial to many, but it made me think, and I really enjoyed the moment
+# when I realised what to do (though it took me a little while longer, after realising what
+# to do, to realise that the LCM had to be of _all_ monkeys, not just the current monkey and
+# the monkey to which it passes...).
+
+
+### Parse input
 
 mutable struct Monkey
     n::Int
@@ -52,7 +79,7 @@ function parse_input(data_file::String)
 end
 
 
-# Part 1
+### Part 1
 
 eval_expr(ex::Expr, old::Int) = Meta.eval(Base.Cartesian.lreplace(ex, :old, old))
 
@@ -102,7 +129,7 @@ function part1(monkeys::Dict{Int,Monkey})
 end
 
 
-# Part 2
+### Part 2
 
 function part2(monkeys::Dict{Int,Monkey})
     monkeys = deepcopy(monkeys)
@@ -144,6 +171,7 @@ function part2(monkeys::Dict{Int,Monkey})
 end
 
 
+### Main
 
 function main()
     data = parse_input("data11.txt")

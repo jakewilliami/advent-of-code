@@ -1,7 +1,29 @@
+# Today was good, but part 2 was a little harder.  I did part 1 in a decent amount of time
+# (I had a few annoying bugs, mind), but part 2 was a bit harder initially.  We were given a
+# list of instructions: move right, left, up, or down n steps (denoted by r"[RLUP] \d+").
+# The problem set out rules around, given a tail and a head, how the tail should follow the
+# head in a 2-dimensional grid.
+#
+# Part 1, as I say, wasn't too bad.  Except for a few bugs, I used previously-defined
+# multidimensional logic to get the cardinal directions and map them to a direction
+# character (R, L, U, D), so that the input data consisted of instructions, which took the
+# form of a "Direction" and a magnitude.  The goal was to follow the instructions, moving
+# the head accordingly, and have the tail follow the head according to the rules set out in
+# the puzzle.  The answer was the number of unique positions the tail travelled.
+#
+# Unfortunately I had to go out to dinner with some friends before I could do part 2,
+# however while I was at dinner I realised the trick.  The goal, you see, was to, instead of
+# keeping track of one tail, keep track of a long tail.  The "aha" moment while i was out
+# was that I shouldn't need to think so complicated, and each tail could be treated as the
+# head of the next tail, so you can simply do the same as you did in part 1, but for each
+# section of the tail!  After that, the answer is the same as previously: how many positions
+#  did the tail (now of length 10) move?
+
+
 using AdventOfCode.Multidimensional
 
 
-# Parse Input
+### Parse Input
 
 const DIRECTIONS = cardinal_directions(2)
 
@@ -30,11 +52,11 @@ function parse_input(data_file::String)
     return data
 end
 
+
+### Part 1
+
 adjust_tail(ti::CartesianIndex{2}, hi::CartesianIndex{2}) =
     ti + direction(hi - ti)
-
-
-# Part 1
 
 function part1(instructions::Vector{Instruction})
     s = Set()
@@ -54,7 +76,7 @@ function part1(instructions::Vector{Instruction})
 end
 
 
-# Part 2
+### Part 2
 
 function part2(instructions::Vector{Instruction})
     s = Set()

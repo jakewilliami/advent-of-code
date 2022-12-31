@@ -1,4 +1,23 @@
-# Parse input
+# Today's problem was really interesting!  We were essentially given a terminal output of
+# cd-ing and ls-ing, and we had to construct a file system from there.  It was really good
+# practice for something I sometimes struggle with: recursion.  Indeed, the hardest part was
+# actually parsing the input.
+#
+# Part 1 required us to find the total summed size of all directories with total size of at
+# most 100,000 bytes.
+#
+# In part 2, we were to find the smallest directory that would free up enough space to use
+# the file system.  (The file system has a size of 70,000,000 bytes, and you need unused
+# space of at least 30,000,000).  As mentioned, the problems themselves were trivial once
+# the input was parsed.
+#
+# Both parts could actually have been done without using recursion; we only actually care
+# about the size of the directory and all children (files or subdirectories), so we could
+# store all of this information in a simple String => Int map.  However, as I say, I needed
+# some practice with recursion, and this was fun, I guess.
+
+
+### Parse input
 
 abstract type FileSystemObject end
 
@@ -96,7 +115,7 @@ function parse_input(data_file::String)
 end
 
 
-# Part 1
+### Part 1
 
 Base.isdir(node::FileSystemObject) = isa(node, Dir)
 
@@ -123,7 +142,7 @@ end
 part1(fs::Dir) = part1(fs, 100_000)
 
 
-# Part 2
+### Part 2
 
 function part2(node::Dir, space_avail::Int, space_needed::Int, curr_min_max::Int = 100_000_000)
     if isa(node, Dir)
@@ -144,7 +163,7 @@ end
 part2(fs::Dir) = part2(fs, 70_000_000 - dir_size(fs), 30_000_000)
 
 
-# Main
+### Main
 
 function main()
     data = parse_input("data07.txt")

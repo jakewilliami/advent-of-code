@@ -1,4 +1,21 @@
-# Parse input
+# We are met with supply crates, in stacks.  Our input for this day can be split into two
+# parts: the initial state of the crates (each crate labelled with a letter, and the stacks
+# at varying heights), and instructions for moving n crates from stack a to stack b.
+#
+# Part 1 asks us to move these stacks one at a time.  The answer to the puzzle was to read
+# the top of each stack after following all instructions.
+#
+# Part 2 was the same as part 1, but asks us to move them all at once.  (This is
+# demonstrably different from part one as in part 1, moving the crates one by one will
+# reverse them.)
+#
+# Today's challenge was simple, but the hardest part was programmatically reading the
+# initial state of the crates.  Regex was probably overkill.  People that were higher up on
+#  the leaderboard would have initially hard-coded this input, as it was sufficiently small
+# (9 stacks of crates, each stack containing no more than 7 crates).
+
+
+### Parse input
 
 const Crate = Char
 const CrateState = Vector{Vector{Crate}}
@@ -47,7 +64,7 @@ function parse_input(data_file::String)
 end
 
 
-# Part 1
+### Part 1
 
 function _cratemover_core(init_state::CrateState, instructions::Vector{Instruction}, f::Function = identity)
     state = deepcopy(init_state)
@@ -69,7 +86,7 @@ function part1(init_state::CrateState, instructions::Vector{Instruction})
 end
 
 
-# Part 2
+### Part 2
 
 cratemover_9001(init_state::CrateState, instructions::Vector{Instruction}) =
     _cratemover_core(init_state, instructions)
@@ -80,7 +97,7 @@ function part2(init_state::CrateState, instructions::Vector{Instruction})
 end
 
 
-# Main
+### Main
 
 function main()
     init_state, instructions = parse_input("data05.txt")

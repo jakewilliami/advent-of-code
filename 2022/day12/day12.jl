@@ -1,9 +1,35 @@
+# Today's problem gave us a grid of characters (which I parsed into a matrix), each
+# character representing a height in a hill.  There were also the characters S (the starting
+# character) and E (the goal position).
+#
+# Part 1 required us to find the optimal path from S to E with a constraint: you can only
+# move to a position orthogonally adjacent if it is at most 1 elevation greater.  I solved
+# this by constructing a graph of nodes (using Graphs.jl), with nodes between edges if the
+# elevation allowed it, and performing an A* search on the graph from the start node to the
+# end node.
+#
+# Part 2 was similar, except this time we had to find the optimal path from _any_ position
+# with elevation 'a' (S also has elevation 'a').  I did the trivial thing: perform part 1 on
+# all of the new starting positions.
+#
+# I guess you could say I got a little intimidated by this problem.  I did not study
+# computer science, so this was the first problem this year that I did not exactly know how
+#to solve.  I quickly reduced it to a path finding/graph theory problem, but I haven't
+# really had experience solving such problems programmatically.  I chose A* because I knew
+# it would work.  However, after I had finished this, I was looking at others' solutions,
+# and realised that a simple breadth-frist search (BFS) would work.  My BFS solution is
+# implemented below.  Overall, this has been really good experience for me to use more graph
+# theory in programming.
+
+
 using AdventOfCode.Multidimensional
 
 using DataStructures
 using Graphs
 import Graphs: SimpleGraphs.SimpleEdge
 
+
+### Part 1
 
 function elevation_allowed(c1::Char, c2::Char)
     c1 == 'S' && (c1 = 'a')
@@ -48,6 +74,8 @@ function part1(data::Matrix{Char})
 end
 
 
+### Part 2
+
 function part2(data::Matrix{Char})
     start_is = findall(i -> data[i] ∈ ('S', 'a'), eachindex(data))
     end_i = findfirst(i -> data[i] == 'E', eachindex(data))
@@ -59,6 +87,8 @@ function part2(data::Matrix{Char})
     return minimum(length(p) for p in paths)
 end
 
+
+### Main
 
 function main()
     data = readlines_into_char_matrix("data12.txt")
@@ -76,6 +106,8 @@ end
 
 main()
 
+
+### BFS
 
 #=
 Using BFS, rather than constructing a graph and using A*.

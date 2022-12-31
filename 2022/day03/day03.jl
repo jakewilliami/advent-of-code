@@ -1,5 +1,20 @@
-parse_input(data_file::String) =
-    String[line for line in readlines(data_file)]
+# Our input, a list of strings, represents items in bags (one item per character; one bag
+# per line).  Each character has a numerical value (called a priority), with a–z mapping to
+# 1–26, and A–Z mapping to 27–52.
+#
+# In part 1, we had to split the contents of each bag in half, and add the priority of those
+# items that are contained in both halves of the bag.
+#
+# In part 2, we have to look through three bags at a time, and add one common element
+# between these.
+#
+# Today, we utilise Julia's intersection (∩) function, as well as Iterators.partition in
+# part 2 for convenience.
+
+
+### Parse input
+
+parse_input(data_file::String) = String[line for line in readlines(data_file)]
 
 function priority(c::Char)
     if 'a' ≤ c ≤ 'z'
@@ -11,7 +26,7 @@ function priority(c::Char)
 end
 
 
-# Part 1
+### Part 1
 
 function part1(data::Vector{String})
     res = 0
@@ -26,7 +41,7 @@ function part1(data::Vector{String})
 end
 
 
-# Part 2
+### Part 2
 
 function part2(data::Vector{String})
     res = 0
@@ -38,7 +53,7 @@ function part2(data::Vector{String})
 end
 
 
-# Main
+### Main
 
 function main()
     data = parse_input("data03.txt")

@@ -1,3 +1,13 @@
+# We are given a long string which represents a signal from a communication device.  Within
+# that signal is a marker: a series of packets (characters) that are all unique.
+#
+# Part 1 asks us to find the marker of length 4.  This was simple enough, to check that the
+# number of unique characters in the window of length 4 is also 4.
+#
+# Part 2 simply asked us to change the marker length to 14, which was trivial as I coded
+# this dynamically in the first place.
+
+
 parse_input(data_file::String) = strip(read(data_file, String))
 
 function _find_starting_marker(data::S, marker_len::Int) where {S <: AbstractString}

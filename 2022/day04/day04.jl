@@ -1,13 +1,27 @@
-function parse_range(r_str::S) where {S <: AbstractString}
-    s1, s2 = split(r_str, '-')
-    return parse(Int, s1):parse(Int, s2)
+# On this day, we are given a list of ranges (on each line, two ranges of numbers).  Each
+# range represents a section ID for which the elves are assigned cleaning (the elves are
+# paired up, which is why there are two ranges on each line).
+#
+# Part 1 requires us to identify the number of pairs of elves whose section IDs overlap
+# entirely (hence, redundant work).
+#
+# Part 2 asks us to find _any_ overlap of section IDs between the pairs of elves.
+#
+# I initially solved this using Julia's all function (checking that all IDs in range one are
+# in range two, or vice versa).  Part 2 trivially changed this function to any.
+
+
+# "a-b" or "a:b" -> a:b
+function Base.parse(::Type{UnitRange{T}}, r_str::S) where {T <: Number, S <: AbstractString}
+    s1, s2 = split(r_str, '-' ∈ r_str ? '-' : ':')
+    return parse(T, s1):parse(T, s2)
 end
 
 function parse_input(data_file::String)
     data = Tuple{UnitRange{Int}, UnitRange{Int}}[]
     for line in readlines(data_file)
         s1, s2 = split(line, ',')
-        r1, r2 = parse_range(s1), parse_range(s2)
+        r1, r2 = parse.(UnitRange{Int}, (s1, s2))
         push!(data, (r1, r2))
     end
     return data
@@ -23,11 +37,9 @@ function _solve_day_4(data::Vector{Tuple{UnitRange{Int}, UnitRange{Int}}}, f::Fu
     return res
 end
 
-part1(data::Vector{Tuple{UnitRange{Int}, UnitRange{Int}}}) =
-    _solve_day_4(data, all)
+part1(data::Vector{Tuple{UnitRange{Int}, UnitRange{Int}}}) = _solve_day_4(data, all)
 
-part2(data::Vector{Tuple{UnitRange{Int}, UnitRange{Int}}}) =
-    _solve_day_4(data, any)
+part2(data::Vector{Tuple{UnitRange{Int}, UnitRange{Int}}}) = _solve_day_4(data, any)
 
 function main()
     data = parse_input("data04.txt")

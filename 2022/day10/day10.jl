@@ -1,4 +1,29 @@
-# Parse input
+# I found today a bit tricky!  We were given instructions: either "noop" (no operation), or
+# "addx n".  We had to keep track of a register, that the "addx" instructions would modify.
+#
+# In part 1, we had to follow these instructions (according to the description in the
+# puzzle), and state the "signal strength" after these instructions (which is obtained by
+# the sum of the register value multiplied by the cycle index for 20ᵗʰ, 60ᵗʰ, 100ᵗʰ, 140ᵗʰ,
+# 180ᵗʰ, and 220ᵗʰ cycles.  The tricky part came when we followed the addx instruction: it
+# only modifies the register _after two cycles_.  Keeping track of the instruction count,
+# the cycle count, the register value, and the answer value (which accumulated every 40
+# rounds after round 20) was a bit of a headache, and I had a lot of off-by-one errors.
+#
+# Part 2 was also tricky.  Not only do we have to still keep track of the register value and
+# the addx counter, but keep track of the position of a "sprite".  Furthermore, the result
+# was read from a display; this is something that Advent of Code problems sometimes do,
+# where you are asked to draw dots and hashes, and read the output, which forms letters.
+# The pixels written to this display were a product of the sprite position.  Once again, I
+# had more off-by-one errors than I'd care to admit in this problem.
+#
+# Overall, I took probably far too long to do this part, but did have fun doing it.  After I
+# had finished, I read a really neat solution: to avoid confusion around keeping track of
+# the addx counter separately, when you read an addx instruction when parsing your input,
+# you can put a noop before it, and that will handle the cycling correctly!  I thought that
+# was brilliant; if only I had thought of that!
+
+
+### Parse input
 
 @enum InstructionCommand noop addx
 
@@ -26,7 +51,7 @@ function parse_input(data_file::String)
 end
 
 
-# Part 1
+### Part 1
 
 function part1(instructions::Vector{Instruction})
     # Set changeable values such as Register X, the resume (which
@@ -61,6 +86,9 @@ function part1(instructions::Vector{Instruction})
 
     return res
 end
+
+
+### Part 2
 
 function write_pixel!(io::IOBuffer, X::Int, inst_cnt::Int, screen_width::Int)
     i = mod1(inst_cnt + 1, screen_width)
@@ -128,7 +156,7 @@ function part2(instructions::Vector{Instruction})
 end
 
 
-# Main
+### Main
 
 function main()
     data = parse_input("data10.txt")

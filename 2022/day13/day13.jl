@@ -1,3 +1,31 @@
+# Today's problem was interesting.  We were given pairs of "packets", separated by empty
+# lines.  There packets consisted of lists, whose elements were other lists (nested
+# potentially many deep) or integers.  The problem detailed how to tell if one packet was in
+# order with another (see instructions on AoC website for detail).
+#
+# Using Julia's extensible ordering API, and multiple dispatch, it was trivial to write a
+# `correct_order` function based on the instructions detailed.
+#
+# In part 1, we were asked to count the number of pairs of packets that are in the correct
+# order.  Writing the `correct_order` function was simple enough (as long as one read the
+# instructions carefully), and so adding up the indices of the pairs that were ordered
+# correctly was trivial from then.
+#
+# Part 2 gave us two "markers" (new packets), and did away with the "pair" concept from our
+# original input (hence, we flattened the array).  We were to sort the list _with_ these
+# markers inserted, and find the product of the sorted indices of these markers.  Extending
+# `Base.Order.Ordering`, we could write a `lt` function using our `correct_order` functions
+# for a custom `PacketOrdering`.  Hence, we can use the builtin `sort` function with our
+# `PacketOrdering` specified to efficiently sort the input (after inserting the markers),
+# and finding their respective indices in the sorted list.  Indeed, that is what we did, and
+# it worked.
+#
+# Today's problem was rather enjoyable, as I made the most of Julia's multiple dispatch and
+# Ordering API.  It felt like a very idiomatic solution!
+
+
+### Parse input
+
 function parse_input(data_file::String)
     data = Tuple{Any, Any}[]
     contents = read(data_file, String)
@@ -9,7 +37,7 @@ function parse_input(data_file::String)
 end
 
 
-# Ordering
+### Ordering
 
 @enum PacketOrder correct incorrect indeterminate
 
@@ -39,7 +67,7 @@ correct_order(left::AbstractVector, right::I) where {I <: Integer} =
     correct_order(left, I[right])
 
 
-# Part 1
+### Part 1
 
 function part1(data::Vector{NTuple{2, T}}) where {T}
     res = 0
@@ -51,7 +79,7 @@ function part1(data::Vector{NTuple{2, T}}) where {T}
 end
 
 
-# Part 2
+### Part 2
 
 struct PacketOrdering <: Base.Order.Ordering end
 Base.Order.lt(_o::PacketOrdering, a, b) = correct_order(a, b) == correct
@@ -75,7 +103,7 @@ function part2(data::Vector{NTuple{2, T}}) where {T}
 end
 
 
-# Main
+### Main
 
 function main()
     data = parse_input("data13.txt")
