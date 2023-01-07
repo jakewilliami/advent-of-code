@@ -124,9 +124,10 @@ end
 """
 ```julia
 cardinal_directions(dim::I; include_origin::Bool = false) -> Vector{CartesianIndex}
+orthogonal_directions(dim::I; include_origin::Bool = false) -> Vector{CartesianIndex}
 ```
 
-Find all cardinal direction offsets in the specified dimension.
+Find all cardinal/orthogonal direction offsets in the specified dimension.
 
 Optionally, include the origin (e.g., `(0, 0, 0)`) if `include_origin` is set to true (this is the identity direction).
 
@@ -145,6 +146,9 @@ function cardinal_directions(dim::I; include_origin::Bool = false) where {I<:Int
 
     return CartesianIndex{dim}[i for i in dir_itr if fltr(i)]
 end
+
+
+const orthogonal_directions = cardinal_directions
 
 
 """

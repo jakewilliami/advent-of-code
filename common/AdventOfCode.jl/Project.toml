@@ -1,7 +1,7 @@
 name = "AdventOfCode"
 uuid = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
 authors = ["Jake Ireland <jakewilliami@icloud.com> and contributors"]
-version = "0.3.2"
+version = "0.3.3"
 
 [compat]
 julia = "1"
