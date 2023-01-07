@@ -5,16 +5,6 @@ using Test
     @testset "AdventOfCode.jl/Multidimensional" begin
         using AdventOfCode.Multidimensional
 
-        # Read
-        p, fp = mktemp(cleanup = false)
-        A = permutedims(reshape(0:9, (5, 2)))
-        write(fp, "01234\n")
-        write(fp, "56789\n")
-        close(fp)
-        @test readlines_into_char_matrix(p) == only.(string.((A)))
-        @test readlines_into_int_matrix(p) == A
-        rm(p)
-
         # Adjacencies
         @test n_cardinal_adjacencies(2) == 4
         @test n_cardinal_adjacencies(3) == 6
@@ -61,5 +51,25 @@ using Test
         @test direction(CartesianIndex(1, 10)) == CartesianIndex(1, 1)
         @test direction(CartesianIndex(-69, 0)) == CartesianIndex(-1, 0)
         @test all(sum(map(abs, Tuple(d))) == 1 for d in cardinal_directions(3))
+    end
+
+
+    @testset "AdventOfCode.jl/Parsing" begin
+        using AdventOfCode.Parsing
+
+        # Integers
+        s = "123...something 10 something 1 something else -1 1000 22 something else else -20"
+        @test get_integers(s) == Int[123, 10, 1, 1, 1000, 22, 20]
+        @test get_integers(s; negatives = true) == Int[123, 10, 1, -1, 1000, 22, -20]
+
+        # Matrices
+        p, fp = mktemp(cleanup = false)
+        A = permutedims(reshape(0:9, (5, 2)))
+        write(fp, "01234\n")
+        write(fp, "56789\n")
+        close(fp)
+        @test readlines_into_char_matrix(p) == only.(string.((A)))
+        @test readlines_into_int_matrix(p) == A
+        rm(p)
     end
 end

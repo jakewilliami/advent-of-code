@@ -6,3 +6,4 @@ To add this to a day's solution, create a project and add the module [as describ
 
 Current nested modules:
   - Multidimensional: provides various multidimensional helper functions for working with indices and offsets.
+  - Parsing: helpful parser methods for AoC input.
