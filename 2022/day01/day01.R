@@ -1,32 +1,23 @@
-# Read lines of file
-f <- "data01.txt"
-fp <- file(f,open="r")
-lines <- readLines(fp)
-close(fp)
+# read in the data as a vector of strings
+path <- "data01.txt"
+con <- file(path, open="r")
+lines <- readLines(con)
+close(con)
 
-data <- list()  # Initialise a list of lists?
-these_data <- c()  # Intialise a character list?
-for (line in lines) {
-    if (line == "") {
-        ## data <- append(data, these_data)
-        data[[length(data) + 1]] <- these_data  # Append the data?
-        these_data <- c()  # Reset the character list
-    } else {
-        ## these_data <- append(these_data, strtoi(line, 10))
-        these_data[[length(these_data) + 1]] <- strtoi(line, 10)
-    }
+# helper function to cut up the vector of lines
+partition <- function(x, start, stop){
+  x[start:stop]
 }
 
-# Get sums of each elf
-## sums <- sapply(data, sum)
-sums <- c()
-## for (i in 1:length(data)) {
-    ## contents <- data[i]
-    ## print(typeof(contents))
-    ## print(contents[1])
-    ## sums[[length(sums) + 1]] <- sum(contents)
-## }
+# find where the new lines are, and also add the endpoints for easier iteration
+blank_lines <- c(0, which(lines == ""), length(lines) + 1)
 
-print(sums)
+# create a list of string vectors
+data <- lapply(2:length(blank_lines), function(i){
+  partition(lines, blank_lines[i-1] + 1, blank_lines[i] - 1)
+})
 
-
+# convert each of the strings to integers
+# everything in R is a vector operation, so as.integer(c("1", "2", "3")) just
+# works. lapply will apply as.integer to each of the vectors, and return a list
+data <- lapply(data, as.integer)

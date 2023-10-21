@@ -46,10 +46,24 @@ function sort_list!(A, lookup; modifier = 1)
         delete!(A)  # delete current head from list
         # shift!(A, abs(w.data), sign(w.data) == 1 ? :forward : :backward)  # shift current head position
         # shift!(A, mod(w.data, length(data)), sign(w.data) == 1 ? :forward : :backward)  # shift current head position
-        i = mod(abs(w.data) * modifier, length(A))  # - 1
-        i = norm(w.data * modifier, div(length(A) - 1, 2))
+        # i = mod(abs(w.data) * modifier, length(A))  # - 1
+        # i = norm(w.data * modifier, div(length(A) - 1, 2))
+        # i = mod(w.data * modifier, length(A))
+        # i = mod(abs(w.data) * modifier, length(A)) * sign(w.data)
+        # i = mod(abs(w.data * modifier), length(A)) * sign(w.data)
+        d = big(w.data)
+        # i = Int(mod(abs(d * modifier), length(A))) * sign(d)
+        # i = Int(mod(abs(d) * modifier, length(A))) * Int(sign(d))
+        # i = Int(mod(d * modifier, length(A)))
+        # i = Int(mod(abs(d * modifier), length(A))) * Int(sign(d))
+        # i = mod(abs(w.data * modifier), length(A)) * sign(w.data)
+        # i = mod(w.data * modifier, length(A))
+        # i = Int(mod(d * modifier, length(A)))
+        # i = mod(w.data * modifier, length(A)) * sign(w.data)
+        i = mod(w.data, length(A))
+        # i = w.data * modifier
         # shift!(A, i, sign(w.data) == 1 ? :forward : :backward)  # shift current head position
-        shift!(A, i, sign(i) == 1 ? :forward : :backward)  # shift current head position
+        shift!(A, i)  # shift current head position
         insert!(A, w.data)
         # println("$(w.data) -> $(mod((w.data), length(A))) => $([a for a in A])")
         # shift!(A, abs(v) - 1, sign(v) == 1 ? :backward : :forward)
@@ -71,8 +85,9 @@ function grove_coordinates_sum!(A; modifier = 1)
     for _ in 1:3
         i = 1000
         # i = norm(1000, length(A) ÷ 2)
-        shift!(A, 1000, :forward)
-        ans += current(A).data * modifier
+        shift!(A, 1000)
+        # ans += current(A).data * modifier
+        ans += current(A).data
     end
 
     return ans
@@ -85,7 +100,7 @@ function main(data)
     lookup = build_lookup_table(A)
     sort_list!(A, lookup)
 
-    println(A)
+    # println(A)
 
     # forward!(A)
     # return A
@@ -148,8 +163,47 @@ end
 
 println(main2(data))
 
+
 # 1697844508076 TOO LOW
 # 2937952733860 TOO LOW
 # 15371498557820 TOO HIGH
 # 7736879395549 NOPE
 # 15403150534787 NOPE
+# 16524766744233 NOPE
+# 1438947568269 NOPE
+# 7274410435517330557
+
+function main()
+end
+
+# A = Deque{Int}(6); push!.(Ref(A), (1, 2, -3, 3, -2, 0, 4)); A
+#=using DataStructures
+function sort_list!(A, lookup; modifier = 1)
+
+
+    for n in 1:length(A)
+        w = lookup[n]
+        jump!(A, w)  # jump to the nth node
+        delete!(A)  # delete current head from list
+        i = mod(w.data * modifier, length(A))
+        shift!(A, i)  # shift current head position
+        insert!(A, w.data)
+    end
+
+    return A
+end
+function mix!(A::CircularDeque{Tuple{Int, Int}})
+    for i in 1:length(A)
+        while A[1][1] != i
+
+        end
+    end
+end
+function main_deque(data)
+    A = CircularDeque{Tuple{Int, Int}}(length(data))
+    push!.(Ref(A), collect(enumerate(data)))
+    println(A)
+
+
+end
+=#
