@@ -18,13 +18,6 @@ Modules I have written that are nested within the `AdventOfCode` module to help 
 
 ### Multidimensional
 
-#### Adjacencies
-
-  - `n_cardinal_adjacencies(n::Integer) -> Integer`: the number of points cardinally adjacent to any given point in ℝⁿ.
-  - `n_faces(n::Integer) -> Integer`: the number of faces of a point/square/[hyper]cube in ℝⁿ.
-  - `n_adjacencies(n::Integer) -> Integer`: the number of points adjacent to any given point in ℝⁿ (including diagonally).
-  - `areadjacent(i::CartesianIndex{N}, j::CartesianIndex{N}) -> bool`: are two indices `i` and `j` adjacent?
-
 #### Origin
 
   - `origin(n::Integer) -> CartesianIndex{n}`: the origin in ℝⁿ (can also use `𝟘`).
@@ -39,6 +32,26 @@ Modules I have written that are nested within the `AdventOfCode` module to help 
   - `direction(i::CartesianIndex{N}) -> CartesianIndex{N}`: get the Cartesian direction offset of the specified index; e.g., `(-3, 3)` has the `(-1, 1)` direction.
   - `cardinal_directions(dim::I; include_origin::Bool = false) -> Vector{CartesianIndex}`: Find all direction offsets in the specified dimension (can also use `orthogonal_directions`).
   - `cartesian_directions(dim::I; include_origin::Bool = false) -> Vector{CartesianIndex}`: Find all direction offsets (including diagonal) in the specified dimension.
+
+#### Adjacencies
+
+  - `n_faces(n::Integer) -> Integer`: the number of faces of a point/square/[hyper]cube in ℝⁿ.
+  - Number of adjacencies:
+    - `n_cardinal_adjacencies(n::Integer) -> Integer`: the number of points cardinally adjacent to any given point in ℝⁿ.
+    - `n_adjacencies(n::Integer) -> Integer`: the number of points adjacent to any given point in ℝⁿ (including diagonally).
+  - `areadjacent(i::CartesianIndex{N}, j::CartesianIndex{N}) -> bool`: are two indices `i` and `j` adjacent?
+  - Adjacent elements:
+    - `cardinal_adjacencies(M::AbstractArray{T}, i::CartesianIndex{N}) -> Vector{T}`: the cardinally adjacent elements to the specified index within the array (can also use `orthogonal_adjacencies`).
+    - `cartesian_adjacencies(M::AbstractArray{T}, i::CartesianIndex{N}) -> Vector{T}`: the adjacent elements (including diaginally) to the specified index within the array.
+  - Adjacent indices:
+    - `adjacent_cardinal_indicies(M::AbstractArray{T}, i::CartesianIndex{N}) -> Vector{T}`: the cardinally adjacent indices to the specified index within the array (can also use `adjacent_orthogonal_indices`).
+    - `adjacent_cartesian_indices(M::AbstractArray{T}, i::CartesianIndex{N}) -> Vector{T}`: the adjacent indices (including diaginally) to the specified index within the array.
+  - Adjacent elements with indices:
+    - `cardinal_adjacencies_with_indices(M::AbstractArray{T}, i::CartesianIndex{N}) -> Vector{Tuple{CartesianIndex{N}, T}}`: the cardinally adjacent elements and indices to the specified index within the array (can also use `orthogonal_adjacencies_with_indices`).
+    - `cartesian_adjacencies_with_indices(M::AbstractArray{T}, i::CartesianIndex{N}) -> Vector{Tuple{CartesianIndices{N}, T}}`: the adjacent elements and indices (including diaginally) to the specified index within the array.
+  - Direction constants:
+    - `INDEX_LEFT`, `INDEX_RIGHT`, `INDEX_ABOVE`, `INDEX_BELOW`
+    - `INDEX_TOP_LEFT`, `INDEX_TOP_RIGHT`, `INDEX_BOTTOM_LEFT`, `INDEX_BOTTOM_RIGHT`
 
 ## Other
 

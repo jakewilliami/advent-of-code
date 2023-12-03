@@ -5,17 +5,6 @@ using Test
     @testset "AdventOfCode.jl/Multidimensional" begin
         using AdventOfCode.Multidimensional
 
-        # Adjacencies
-        @test n_cardinal_adjacencies(2) == 4
-        @test n_cardinal_adjacencies(3) == 6
-        @test n_faces(2) == 4
-        @test n_faces(3) == 6
-        @test n_adjacencies(2) == 8
-        @test n_adjacencies(3) == 26
-        i, j, k = CartesianIndex(3, 3), CartesianIndex(2, 2), CartesianIndex(2, 1)
-        @test areadjacent(i, j)
-        @test !areadjacent(i, k)
-
         # Origin
         @test 𝟘(2) == CartesianIndex(0, 0)
         @test 𝟘(3) == CartesianIndex(0, 0, 0)
@@ -51,6 +40,25 @@ using Test
         @test direction(CartesianIndex(1, 10)) == CartesianIndex(1, 1)
         @test direction(CartesianIndex(-69, 0)) == CartesianIndex(-1, 0)
         @test all(sum(map(abs, Tuple(d))) == 1 for d in cardinal_directions(3))
+
+        # Adjacencies
+        @test n_cardinal_adjacencies(2) == 4
+        @test n_cardinal_adjacencies(3) == 6
+        @test n_faces(2) == 4
+        @test n_faces(3) == 6
+        @test n_adjacencies(2) == 8
+        @test n_adjacencies(3) == 26
+        i, j, k = CartesianIndex(3, 3), CartesianIndex(2, 2), CartesianIndex(2, 1)
+        @test areadjacent(i, j)
+        @test !areadjacent(i, k)
+        @test M3[CartesianIndex{2}() + INDEX_RIGHT] == 69
+        @test M3[CartesianIndex{2}() + 2INDEX_RIGHT + INDEX_LEFT] == 69
+        indices1, indices2 = adjacent_cartesian_indices(M3, CartesianIndex{2}()), cartesian_adjacencies_with_indices(M3, CartesianIndex{2}())
+        @test length(indices1) == length(indices2)
+        for (a, (b, c)) in zip(indices1, indices2)
+            @test a == b
+            @test M3[a] == M3[b] == c
+        end
     end
 
 
