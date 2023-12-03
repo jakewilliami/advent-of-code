@@ -1,15 +1,10 @@
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
 
-function parse_input(input_file::String)
-    return readlines_into_char_matrix(input_file)
-    return read(input_file, String)
-    A = readlines(input_file)
-    return A
-end
+parse_input(input_file::String) =
+    readlines_into_char_matrix(input_file)
 
-function parse_number(is, data)
-    io = IOBuffer()
-    for j in is
+function _parse_number(io::IOBuffer, data::Matrix{Char}, indices)
+    for j in indices
         print(io, data[j])
     end
     s = String(take!(io))
@@ -18,6 +13,7 @@ end
 
 function part1(data)
     res = 0
+    int_parse_io = IOBuffer()
 
     for (row_i, _row) in enumerate(eachrow(data))
         i = CartesianIndex(row_i, 1)
@@ -25,11 +21,11 @@ function part1(data)
             c = data[i]
             if isdigit(c)
                 is = CartesianIndex[i]
-                j = i + CartesianIndex(0, 1)
+                j = i + INDEX_RIGHT
 
                 # Collect indices that make up the number
                 while true
-                    j = i + CartesianIndex(0, 1)
+                    j = i + INDEX_RIGHT
                     i = j
                     if hasindex(data, j) && isdigit(data[j])
                         push!(is, j)
@@ -42,9 +38,8 @@ function part1(data)
                 # Check if number adjacent to symbol
                 adj_to_symbol = false
                 for i2 in is
-                    for d in cartesian_directions(2)
-                        j = i2 + d
-                        if hasindex(data, j) && !isdigit(data[j]) && data[j] != '.'
+                    for c2 in cartesian_adjacencies(data, i2)
+                        if !isdigit(c2) && c2 != '.'
                             adj_to_symbol = true
                             @goto end_adj_symbol
                         end
@@ -54,10 +49,10 @@ function part1(data)
 
                 # Parse number
                 if adj_to_symbol
-                    res += parse_number(is, data)
+                    res += _parse_number(int_parse_io, data, is)
                 end
             end
-            i += CartesianIndex(0, 1)
+            i += INDEX_RIGHT
             hasindex(data, i) || @goto next_row
         end
         @label next_row
@@ -66,27 +61,23 @@ function part1(data)
 end
 
 
-function extract_number_is(i, data)
-    is = [i]
+function _scan_number_indices(i::CartesianIndex{2}, data::Matrix{Char})
+    is = CartesianIndex[i]
     y, x = Tuple(i)
-    r = 1
+    j = i
     while true
-        j = i + CartesianIndex(0, r)
-        # println(j)
+        j += INDEX_RIGHT
         if hasindex(data, j) && isdigit(data[j])
             push!(is, j)
-            r += 1
         else
             break
         end
     end
-    l = 1
+    j = i
     while true
-        # j = CartesianIndex(y, x - l)
-        j = i - CartesianIndex(0, l)
+        j += INDEX_LEFT
         if hasindex(data, j) && isdigit(data[j])
             push!(is, j)
-            l += 1
         else
             break
         end
@@ -96,39 +87,35 @@ end
 
 function part2(data)
     res = 0
+    int_parse_io = IOBuffer()
 
     # Get indices of gears
     gear_is = CartesianIndex[]
     for i in CartesianIndices(data)
         data[i] == '*' && push!(gear_is, i)
     end
-    # println("gears: ", gear_is)
 
     # Get indices of adjactent numbers
     digits_is = []
     for i in gear_is
         digit_is = []
-        for d in cartesian_directions(2)
-            j = i + d
-            if hasindex(data, j) && isdigit(data[j])
-                push!(digit_is, j)
-            end
+        for (j, c) in cartesian_adjacencies_with_indices(data, i)
+            isdigit(c) && push!(digit_is, j)
         end
         push!(digits_is, (i, digit_is))
     end
-    # println("adj-digits: ", digits_is)
 
     # Extract adjacent numbers
     gear_numbers = Dict()
     seen = []
     for (gear_i, idx_set) in digits_is
         for i in idx_set
-            number_is = extract_number_is(i, data)
+            number_is = _scan_number_indices(i, data)
             if hash(number_is) in seen
                 continue
             end
             push!(seen, hash(number_is))
-            n = parse_number(number_is, data)
+            n = _parse_number(int_parse_io, data, number_is)
             gear_numbers[gear_i] = vcat(get(gear_numbers, gear_i, []), [n])
         end
         seen = []
@@ -158,72 +145,3 @@ function main()
 end
 
 main()
-
-
-
-
-
-   #=idx_itr = CartesianIndices(data)
-    i, istate = iterate(idx_itr)
-    while i !== nothing
-        println("istate (i): $istate ($i)")
-        c = data[i]
-        if isdigit(c)
-            println("here")
-            is = CartesianIndex[i]
-            j = i + CartesianIndex(0, 1)
-
-            # Collect indices that make up the number
-            while hasindex(data, j) && isdigit(data[j])
-                push!(is, j)
-                i = iterate(idx_itr, istate)
-                println("i: $i, j: $j")
-                if i !== nothing
-                    i, istate = i
-                    j = i + CartesianIndex(0, 1)
-                    println("j: $j")
-                end
-            end
-            println(is)
-
-            # Check if number adjacent to symbol
-            adj_to_symbol = false
-            for i2 in is
-                for d in cartesian_directions(2)
-                    j = i2 + d
-                    if hasindex(data, j) && !isdigit(data[j]) && data[j] != '.'
-                        adj_to_symbol = true
-                    end
-                end
-            end
-
-            # Parse number
-            if adj_to_symbol
-                io = IOBuffer()
-                for j in is
-                    print(io, data[j])
-                end
-                s = String(take!(io))
-                println(s)
-                res += parse(Int, s)
-            end
-        end
-        i = iterate(idx_itr, istate)
-        if i !== nothing
-            i, istate = i
-        end
-    end=#
-    #=for i in CartesianIndices(data)
-        c = data[i]
-        if isdigit(c)
-            for d in cartesian_directions(2)
-                j = i + d
-                if hasindex(data, j)
-                    c2 = data[j]
-                    if !isdigit(c2) && c2 != '.'
-                        res += parse(Int, c)
-                    end
-                end
-            end
-        end
-    end=#
