@@ -11,7 +11,7 @@ function _parse_number(io::IOBuffer, data::Matrix{Char}, indices)
     return parse(Int, s)
 end
 
-function part1(data)
+function part1(data::Matrix{Char})
     res = 0
     int_parse_io = IOBuffer()
 
@@ -19,43 +19,37 @@ function part1(data)
         i = CartesianIndex(row_i, 1)
         while hasindex(data, i)
             c = data[i]
-            if isdigit(c)
-                is = CartesianIndex[i]
+            if !isdigit(c)
+                i += INDEX_RIGHT
+                hasindex(data, i) || break
+                continue
+            end
+            is = CartesianIndex[]
+            j = i
+
+            # Collect indices that make up the number
+            while hasindex(data, j) && isdigit(data[j])
+                push!(is, j)
                 j = i + INDEX_RIGHT
+                i = j
+            end
 
-                # Collect indices that make up the number
-                while true
-                    j = i + INDEX_RIGHT
-                    i = j
-                    if hasindex(data, j) && isdigit(data[j])
-                        push!(is, j)
-                    else
-                        next_row = true
-                        break
-                    end
-                end
-
-                # Check if number adjacent to symbol
-                adj_to_symbol = false
-                for i2 in is
-                    for c2 in cartesian_adjacencies(data, i2)
-                        if !isdigit(c2) && c2 != '.'
-                            adj_to_symbol = true
-                            @goto end_adj_symbol
-                        end
-                    end
-                end
-                @label end_adj_symbol
-
-                # Parse number
-                if adj_to_symbol
-                    res += _parse_number(int_parse_io, data, is)
+            # Check if number adjacent to symbol
+            adj_to_symbol = false
+            for i2 in is, c2 in cartesian_adjacencies(data, i2)
+                if !isdigit(c2) && c2 != '.'
+                    adj_to_symbol = true
+                    break
                 end
             end
+
+            # Parse number
+            if adj_to_symbol
+                res += _parse_number(int_parse_io, data, is)
+            end
             i += INDEX_RIGHT
-            hasindex(data, i) || @goto next_row
+            hasindex(data, i) || break
         end
-        @label next_row
     end
     return res
 end
@@ -64,28 +58,20 @@ end
 function _scan_number_indices(i::CartesianIndex{2}, data::Matrix{Char})
     is = CartesianIndex[i]
     y, x = Tuple(i)
-    j = i
-    while true
+    j = i + INDEX_RIGHT
+    while hasindex(data, j) && isdigit(data[j])
+        push!(is, j)
         j += INDEX_RIGHT
-        if hasindex(data, j) && isdigit(data[j])
-            push!(is, j)
-        else
-            break
-        end
     end
-    j = i
-    while true
+    j = i + INDEX_LEFT
+    while hasindex(data, j) && isdigit(data[j])
+        push!(is, j)
         j += INDEX_LEFT
-        if hasindex(data, j) && isdigit(data[j])
-            push!(is, j)
-        else
-            break
-        end
     end
     return sort(is)
 end
 
-function part2(data)
+function part2(data::Matrix{Char})
     res = 0
     int_parse_io = IOBuffer()
 
@@ -96,25 +82,26 @@ function part2(data)
     end
 
     # Get indices of adjactent numbers
-    digits_is = []
+    digits_is = Tuple{CartesianIndex{2}, Vector{CartesianIndex}}[]
     for i in gear_is
-        digit_is = []
+        digit_is = CartesianIndex[]
         for (j, c) in cartesian_adjacencies_with_indices(data, i)
             isdigit(c) && push!(digit_is, j)
         end
+        # Push the gear index, and the list of digit indices around it
         push!(digits_is, (i, digit_is))
     end
 
-    # Extract adjacent numbers
-    gear_numbers = Dict()
-    seen = []
+    # Extract adjacent numbers around gears
+    gear_numbers = Dict{CartesianIndex{2}, Vector{Int}}()
+    numbers_seen = UInt[]
     for (gear_i, idx_set) in digits_is
         for i in idx_set
             number_is = _scan_number_indices(i, data)
-            if hash(number_is) in seen
+            if hash(number_is) ∈ numbers_seen
                 continue
             end
-            push!(seen, hash(number_is))
+            push!(numbers_seen, hash(number_is))
             n = _parse_number(int_parse_io, data, number_is)
             gear_numbers[gear_i] = vcat(get(gear_numbers, gear_i, []), [n])
         end
