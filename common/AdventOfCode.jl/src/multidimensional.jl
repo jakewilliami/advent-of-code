@@ -6,59 +6,11 @@ export hasindex, tryindex, tryindices
 export cardinal_directions, cartesian_directions, direction
 
 
-### Adjacencies
-
-"""
-```julia
-n_cardinal_adjacencies(n::Integer) -> Integer
-```
-
-The number of elements _cardinally_ adjacent to any given element in an infinite lattice/[hyper]matrix for a given ℝⁿ.
-
-See also: [`n_adjacencies`](@ref) and [`n_faces`](@ref).
-"""
-n_cardinal_adjacencies(n::I) where {I<:Integer} = 2n
-
-
-"""
-```julia
-n_faces(n::Integer) -> Integer
-```
-
-The number of faces of a structure for a given ℝⁿ.
-
-See also: [`n_cardinal_adjacencies`](@ref).
-"""
-n_faces(n::I) where {I<:Integer} = n_cardinal_adjacencies(n)
-
-
-"""
-```julia
-n_adjacencies(n::Integer) -> Integer
-```
-
-The number of elements adjacent to any given element in an infinite lattice/[hyper]matrix for a given ℝⁿ.
-
-See also: [`n_cardinal_adjacencies`](@ref).
-"""
-n_adjacencies(n::I) where {I<:Integer} = 3^n - 1
-
-
-"""
-```julia
-areadjacent(i::CartesianIndex{N}, j::CartesianIndex{N}) -> bool
-```
-
-Are `i` and `j` adjacent in n-dimensional Cartesian space?
-"""
-areadjacent(i::CartesianIndex{N}, j::CartesianIndex{N}) where {N} =
-    !any(>(1), map(abs, Tuple(i - j)))
-
-
 ### Origin
 
 """
 ```julia
+origin(n::Integer) -> CartesianIndex{n}
 𝟘(n::Integer) -> CartesianIndex{n}
 ```
 
@@ -66,8 +18,8 @@ The origin in ℝⁿ.
 
 You can type 𝟘 by typing `\\bbzero<tab>`.
 """
-𝟘(n::I) where {I<:Integer} = CartesianIndex(ntuple(_ -> zero(Int), n))
-
+origin(n::I) where {I<:Integer} = CartesianIndex(ntuple(_ -> zero(Int), n))
+const 𝟘 = origin
 
 ### Indexing
 
@@ -95,7 +47,7 @@ See also: [`hasindex`](@ref) and [`tryindices`](@ref).
 tryindex(M::AbstractArray, i::CartesianIndex) where {T,N} = hasindex(M, i) ? M[i] : nothing
 
 
-### Cartesian directions
+### Directions
 
 
 """
@@ -146,8 +98,6 @@ function cardinal_directions(dim::I; include_origin::Bool = false) where {I<:Int
 
     return CartesianIndex{dim}[i for i in dir_itr if fltr(i)]
 end
-
-
 const orthogonal_directions = cardinal_directions
 
 
@@ -168,6 +118,55 @@ See also: [`cardinal_directions`](@ref).
 """
 cartesian_directions(dim::I; include_origin::Bool = false) where {I<:Integer} =
     collect(_cartesian_directions(dim, include_origin = include_origin))
+
+
+### Adjacencies
+
+"""
+```julia
+n_cardinal_adjacencies(n::Integer) -> Integer
+```
+
+The number of elements _cardinally_ adjacent to any given element in an infinite lattice/[hyper]matrix for a given ℝⁿ.
+
+See also: [`n_adjacencies`](@ref) and [`n_faces`](@ref).
+"""
+n_cardinal_adjacencies(n::I) where {I<:Integer} = 2n
+
+
+"""
+```julia
+n_faces(n::Integer) -> Integer
+```
+
+The number of faces of a structure for a given ℝⁿ.
+
+See also: [`n_cardinal_adjacencies`](@ref).
+"""
+n_faces(n::I) where {I<:Integer} = n_cardinal_adjacencies(n)
+
+
+"""
+```julia
+n_adjacencies(n::Integer) -> Integer
+```
+
+The number of elements adjacent to any given element in an infinite lattice/[hyper]matrix for a given ℝⁿ.
+
+See also: [`n_cardinal_adjacencies`](@ref).
+"""
+n_adjacencies(n::I) where {I<:Integer} = 3^n - 1
+
+
+"""
+```julia
+areadjacent(i::CartesianIndex{N}, j::CartesianIndex{N}) -> bool
+```
+
+Are `i` and `j` adjacent in n-dimensional Cartesian space?
+"""
+areadjacent(i::CartesianIndex{N}, j::CartesianIndex{N}) where {N} =
+    !any(>(1), map(abs, Tuple(i - j)))
 
 
 end  # end module
