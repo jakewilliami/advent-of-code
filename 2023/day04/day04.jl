@@ -1,59 +1,56 @@
-using AdventOfCode.Parsing
-
-using DataStructures
+struct Game
+    id::Int
+    mine::Set{Int}
+    winning::Set{Int}
+end
 
 function parse_input(input_file::String)
-    A = []
+    A = Game[]
     for line in eachline(input_file)
         s1, s2 = split(line, "|")
-        l1, l2 = get_integers(s1), get_integers(s2)
-        push!(A, (l1[1], (l1[2:end], l2)))
+        s1a, s1b = split(s1, ":")
+        _s1a, s1a = split(s1a)
+        n = parse(Int, strip(s1a))
+        l1 = Set(parse(Int, s) for s in split(s1b))
+        l2 = Set(parse(Int, s) for s in split(s2))
+        g = Game(n, l1, l2)
+        push!(A, g)
     end
     return A
 end
 
-function n_winning(card)
-    winning, mine = card
-    wins = 0
-    for a in mine
-        if a in winning
-            wins += 1
-        end
-    end
-    return wins
+n_winning(game::Game) =
+    length(game.mine ∩ game.winning)
+
+function game_score(game::Game)
+    wins = n_winning(game)
+    wins == 0 && return 0
+    return 2^(wins-1)
 end
 
-function card_score(card)
-    wins = n_winning(card)
-    return wins == 0 ? 0 : 2^(wins-1)
-end
+part1(data::Vector{Game}) =
+    sum(game_score(game) for game in data)
 
-function part1(data)
-    res = 0
-    for (card_n, card) in data
-        res += card_score(card)
-    end
-    return res
-end
-
-function part2(data)
-    cards = Dict(k => v for (k, v) in data)
-    card_counter = DefaultDict{Int, Int}(0)
+function part2(data::Vector{Game})
+    cards = Dict(g.id => g for g in data)
+    card_counter = Dict{Int, Int}()
 
     # Initialise counter
-    for (card_n, _card) in data
-        card_counter[card_n] += 1
+    for game in data
+        card_counter[game.id] = 1
     end
 
-    for (i, (card_n, card)) in enumerate(data)
-        n_wins = n_winning(card)
-        for _ in 1:card_counter[card_n], j in (i+1):(i+n_wins)
+    # Add won "cards" to counter
+    for (i, game) in enumerate(data)
+        n_wins = n_winning(game)
+        for _ in 1:card_counter[game.id], j in (i+1):(i+n_wins)
             if j <= length(data)
-                card_counter[data[j][1]] += 1
+                card_counter[data[j].id] += 1
             end
         end
     end
 
+    # Calculate answer
     return sum(values(card_counter))
 end
 
