@@ -163,7 +163,25 @@ function interval_except(i1, i2)
 end
 
 function map_source_range!(ranges, r, M::HortMap2)
+    NR = []
+    while length(ranges) > 0
+        r = pop!(ranges)
+        i = r ∩ m.source
+        # width(i) == 0 && continue
+        # dst = src_to_dst(M, leftendpoint(i)) .. src_to_dst(M, rightendpoint(i))
+        before, after = interval_except(r, i)
+        width(before) > 0 && push!(NR, before)
+        w = leftendpoint(m.source)+leftendpoint(m.dest) #+ 1
+        # TODO: pm?
+        width(i) > 0 && push!(ranges, leftendpoint(i)-w, rightendpoint(i)+w)
+        width(after) && push!(NR, after)
+    end
+
+
+    return 0
+
     for m in M.maps
+        println(r, " n ", m.source, "->", r ∩ m.source)
         i = r ∩ m.source
         width(i) == 0 && continue
         dst = src_to_dst(M, leftendpoint(i)) .. src_to_dst(M, rightendpoint(i))
@@ -181,7 +199,70 @@ function map_source_range!(ranges, r, M::HortMap2)
 end
 
 function part2(data)
-    seeds, A = re_parse_data(data)
+    seeds, M = re_parse_data(data)
+
+
+    S = []
+    for s in seeds
+        R = [s]
+        for m in M
+            function f!(R, M)
+                A = []
+                for m in M.maps
+                    NR = []
+                    while length(R) > 0
+                        r = pop!(R)
+                        i = r ∩ m.source
+                        # i = max(leftendpoint(r), leftendpoint(m.source))..min(rightendpoint(m.source), rightendpoint(r))
+                        # println(i == r ∩ m.source)
+                        # width(i) == 0 && continue
+                        # dst = src_to_dst(M, leftendpoint(i)) .. src_to_dst(M, rightendpoint(i))
+                        # before, after = interval_except(r, i)
+                        before = leftendpoint(r)..min(rightendpoint(r), leftendpoint(m.source))
+                        after = max(rightendpoint(m.source), leftendpoint(r)) .. rightendpoint(r)
+                        # println(interval_except(r, i) == (before, after))
+                        width(before) > 0 && push!(NR, before)
+                        # println(NR)
+                        # w = leftendpoint(m.source)+leftendpoint(m.dest) #+ 1
+                        # w = leftendpoint(m.source) + leftendpoint(m.dest)
+                        # TODO: pm?
+                        # width(i) > 0 && push!(A, leftendpoint(i)-w .. rightendpoint(i)+w)
+                        # width(i) > 0 && push!(A, i)
+                        width(i) > 0 && push!(A, leftendpoint(i)-leftendpoint(m.source)+leftendpoint(m.dest)..rightendpoint(i)-leftendpoint(m.source)+leftendpoint(m.dest))
+                        width(after) > 0 && push!(NR, after)
+                    end
+                    append!(R, NR)
+                end
+                append!(R, A)
+            end
+            f!(R, m)
+        end
+        # push!(S, minimum.(leftendpoint.(R)))
+        push!(S, minimum(leftendpoint.(R)))
+        # push!(S, R)
+    end
+    return minimum(S)
+
+    NR = []
+    while length(ranges) > 0
+        r = pop!(ranges)
+        i = r ∩ m.source
+        # width(i) == 0 && continue
+        # dst = src_to_dst(M, leftendpoint(i)) .. src_to_dst(M, rightendpoint(i))
+        before, after = interval_except(r, i)
+        width(before) > 0 && push!(NR, before)
+        w = leftendpoint(m.source)+leftendpoint(m.dest) #+ 1
+        # TODO: pm?
+        width(i) > 0 && push!(ranges, leftendpoint(i)-w, rightendpoint(i)+w)
+        width(after) && push!(NR, after)
+    end
+
+
+
+
+    return 0
+
+    seeds, D = re_parse_data(data)
 
     R = []
     for r in seeds
@@ -291,8 +372,8 @@ function part2(data)
 end
 
 function main()
-    # data = parse_input("data05.txt")
-    data = parse_input("data05.test.txt")
+    data = parse_input("data05.txt")
+    # data = parse_input("data05.test.txt")
     # println(data[1])
     # println(data)
     # println(process_values(data[2][1], data[1]))
