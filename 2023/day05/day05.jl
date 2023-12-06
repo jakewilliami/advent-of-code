@@ -1,3 +1,24 @@
+# Our data is in an interesting format, where the first line of the
+# input is a starting set of "seed values", and the remaining lines
+# are groups of funcions we must apply to the seed values.  The
+# functions consist of ranges of mappings, such that a seed is mapped
+# to a soil value; a soil is mapped to a fertiliser value; and so on
+# and so forth.
+#
+# Part 1 of the problem asks us to apply the mappings for each seed in
+# the original input.  This was straight forward, easy to brute force
+# (though since original implementation I have cleaned up the solution
+# a bit), and I actually did the best I've ever done on part 1 (I got
+# placed just over 800th on the global leaderboard which is cool).
+#
+# Part 2 was *hard*.  Instead of the top line of the input being individual
+# seed values, they represented ranges of values.  Ranges large enough
+# for brute force not to be an option.  I had to use interval sets, and
+# account for different intersections/overlap between the input ranges,
+# the source range in the mappings, and the destination range.  My part 2
+# solution is inspired by others I read as I needed a nudge in order to
+# solve it.
+
 using IntervalSets
 
 struct IntervalRange
@@ -66,7 +87,7 @@ function parse_seeds(seeds::Vector{Int})
     return A
 end
 
-function process_values!(R::Vector{ClosedInterval}, M::HorticultureMap)
+function map_values!(R::Vector{ClosedInterval}, M::HorticultureMap)
     A = ClosedInterval[]
     for m in M.maps
         ss, se = endpoints(m.src)
@@ -84,9 +105,9 @@ function process_values!(R::Vector{ClosedInterval}, M::HorticultureMap)
             intersection = is+offset..ie+offset
             after = max(se, rs)..re
 
-            width(before) > 0 && push!(NR, before)
-            width(i) > 0 && push!(A, intersection)
-            width(after) > 0 && push!(NR, after)
+            isempty(before) || push!(NR, before)
+            isempty(i)      || push!(A, intersection)
+            isempty(after)  || push!(NR, after)
         end
         append!(R, NR)
     end
@@ -100,7 +121,7 @@ function part2(seeds::Vector{Int}, M::Vector{HorticultureMap})
     for s in seeds
         R = ClosedInterval[s]
         for m in M
-            process_values!(R, m)
+            map_values!(R, m)
         end
         push!(S, minimum(leftendpoint.(R)))
     end

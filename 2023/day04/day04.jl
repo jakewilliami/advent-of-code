@@ -1,3 +1,18 @@
+# Input today consists of lines of scratchcards.  On the left of each
+# line (scratchcard) are the numbers you have.  Separated with a pipe
+# are the winning numbers.
+#
+# For each card, we count the number of winning numbers we have.  If you
+# have 1 winning number, you get one point; if 2, you get 2 points; if
+# you have 3 winning numbers, you get 4 points, and so on.  Part 1 gets
+# you to count the game score of each card.
+#
+# In part 2 of this problem, instead of scoring each card, we win more
+# cards from our deck based on the number of winning numbers on the card.
+# I expected this to be similar to day 6, 2021 (too many fishes), but this
+# was easy to compute and return the number of cards we have at the end
+# of the process using a count map.
+
 struct Game
     id::Int
     mine::Set{Int}

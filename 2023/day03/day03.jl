@@ -1,3 +1,15 @@
+# Our input is a grid.  Classic AoC.  The grid consists of numbers, symbols,
+# and blank space (represented as periods).
+#
+# In part 1, we are to extract the numbers that are adjacent to symbols.
+#
+# In part 2, we need to only count the numbers around the `*' symbols, if and
+# only if there are exactly 2 adjacent numbers to it.
+#
+# I think that I made this quite complicated.  I think my solution is *fine*,
+# but I think there are likely easier ways to do this.  I found part 2 easier
+# than part 1, given my data format.
+
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
 
 parse_input(input_file::String) =

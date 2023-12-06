@@ -1,3 +1,20 @@
+# The input consists of two lines, the first containing times and the second,
+# distances.  The idea is that these correspond to race records; a boat took
+# `t' seconds to go `d' distance.
+#
+# The longer we hold down a button, the more time we take, but the faster our
+# boat goes.
+#
+# Part 1 of the problem asks us, for each record, to calculate the number of
+# ways to beat that record.  Part 2 was (slightly disappointingly) simple; it
+# says that the input has bad kerning and there is only one record to beat if
+# you concatenate times and distances together.
+#
+# I assumed I would have to find a clevel solution for part 2 (I think an
+# algebraic solution would work; something something quadratics---it doesn't
+# quite necessitate linear optimisation just yet), however brute force works
+# fine too, so I just used that.
+
 struct RaceRecord
     t::Int  # Record time
     d::Int  # Record distance
@@ -14,7 +31,7 @@ function parse_input(input_file::String)
     # Format for part 1
     Ti, Di = parse.(Int, split(Ts)), parse.(Int, split(Ds))
     @assert length(Ti) == length(Di)
-    A = RaceRecord[RaceRecord(Ti[i], Di[i]) for i in 1:length(Ti)]
+    A = RaceRecord[RaceRecord(t, d) for (t, d) in zip(Ti, Di)]
 
     # Format for part 2
     Ts, Ds = join(split.(Ts)), join(split.(Ds))
