@@ -1,5 +1,3 @@
-# TODO
-
 using IntervalSets
 
 struct IntervalRange
@@ -37,8 +35,9 @@ end
 
 function src_to_dst(M::HorticultureMap, n::Int)
     for m in M.maps
+        ss, ds = leftendpoint(m.src), leftendpoint(m.dst)
         if n ∈ m.src
-            return leftendpoint(m.dst) + (n - leftendpoint(m.src))
+            return ds - ss + n
         end
     end
     return n
@@ -70,15 +69,23 @@ end
 function process_values!(R::Vector{ClosedInterval}, M::HorticultureMap)
     A = ClosedInterval[]
     for m in M.maps
+        ss, se = endpoints(m.src)
+        ds, de = endpoints(m.dst)
+        offset = ds - ss
+
         NR = ClosedInterval[]
         while length(R) > 0
             r = pop!(R)
+            rs, re = endpoints(r)
+
+            before = rs..min(re, ss)
             i = r ∩ m.src
-            before = leftendpoint(r)..min(rightendpoint(r), leftendpoint(m.src))
-            after = max(rightendpoint(m.src), leftendpoint(r)) .. rightendpoint(r)
+            is, ie = endpoints(i)
+            intersection = is+offset..ie+offset
+            after = max(se, rs)..re
+
             width(before) > 0 && push!(NR, before)
-            # TODO: pm?
-            width(i) > 0 && push!(A, leftendpoint(i)-leftendpoint(m.src)+leftendpoint(m.dst)..rightendpoint(i)-leftendpoint(m.src)+leftendpoint(m.dst))
+            width(i) > 0 && push!(A, intersection)
             width(after) > 0 && push!(NR, after)
         end
         append!(R, NR)
