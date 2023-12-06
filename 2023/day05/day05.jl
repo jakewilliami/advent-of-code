@@ -1,24 +1,15 @@
+# TODO
+
 using IntervalSets
 
-struct WeirdRange
-    dest_start::Int
-    source_start::Int
-    range_length::Int
-end
-
-struct WeirdRange2
-    source::ClosedInterval
-    dest::ClosedInterval
+struct IntervalRange
+    src::ClosedInterval
+    dst::ClosedInterval
 end
 
 struct HortMap
     desc::AbstractString
-    maps::Vector{WeirdRange}
-end
-
-struct HortMap2
-    desc::AbstractString
-    maps::Vector{WeirdRange2}
+    maps::Vector{IntervalRange}
 end
 
 function parse_input(input_file::String)
@@ -32,27 +23,30 @@ function parse_input(input_file::String)
         X = []
         for c in b[2:end]
             if !isempty(strip(c))
-                push!(X, WeirdRange(parse.(Int, split(c))...))
+                d, s, l = parse.(Int, split(c))
+                i1 = s .. (s + l)
+                i2 = d .. (d + l)
+                push!(X, IntervalRange(i1, i2))
             end
         end
         push!(B, HortMap(b[1][1:end-1], X))
     end
 
+    # return re_parse_data((seeds, B))
     return seeds, B
 end
 
 function get_val(M::HortMap, n::Int)
     for m in M.maps
-        for i in 0:(m.range_length - 1)
-            if n == (m.source_start + i)
-                return m.dest_start + i
-            end
+        if n ∈ m.src
+            return leftendpoint(m.dst) + (n - leftendpoint(m.src))
         end
     end
     return n
 end
 
 function process_values(M::HortMap, values)
+
     V = []
     for v in values
         push!(V, get_val(M, v))
@@ -61,42 +55,20 @@ function process_values(M::HortMap, values)
 end
 
 function part1(data)
+    seeds, A = data
+    V = seeds
+    for a in A
+        V = process_values(a, V)
+    end
+    return minimum(V)
+
+
+
     V, A = data
     for a in A
         V = process_values(a, V)
     end
     return minimum(V)
-end
-
-function part2_naive(data)
-    V1, A = data
-    V = []
-    for i in 1:2:(length(V1)-1)
-        for v in V1[i]:(V1[i]+V1[i+1]-1)
-            push!(V, v)
-        end
-    end
-    println(V)
-    for a in A
-        V = process_values(a, V)
-    end
-    return minimum(V)
-end
-
-function get_min(R::Vector{WeirdRange})
-    m = nothing
-    out = nothing
-    for r in R
-        if isnothing(m) || m < r.dest_start
-            m = r.dest_start
-            out = r
-        end
-    end
-    return out
-end
-
-function get_min(M::HortMap)
-    return get_min(M.maps)
 end
 
 function parse_seeds(seeds)
@@ -108,285 +80,67 @@ function parse_seeds(seeds)
     return A
 end
 
-function re_parse_data(data)
-    seeds, A = data
-    B = []
-    for a in A
-        M = []
-        for m in a.maps
-            i1 = m.dest_start..(m.dest_start+m.range_length)
-            i2 = m.source_start..(m.source_start+m.range_length)
-            push!(M, WeirdRange2(i2, i1))
-        end
-        push!(B, HortMap2(a.desc, M))
-    end
-    seeds = parse_seeds(seeds)
-    # seeds = []
-    return seeds, B
-end
-
-function src_to_dst(M::HortMap2, n::Int)
+function src_to_dst(M::HortMap, n::Int)
     for m in M.maps
-        if n ∈ m.source
-            return leftendpoint(m.dest) + (n - leftendpoint(m.source)) + 1
+        if n ∈ m.src
+            return leftendpoint(m.dst) + (n - leftendpoint(m.src)) + 1
         end
     end
     return n
-end
-
-function perform_thing(seeds, A)
-    function process_values(M::HortMap2, values)
-        function get_val(M::HortMap2, n::Int)
-            for m in M.maps
-                if n ∈ m.source
-                    return leftendpoint(m.dest) + (n - leftendpoint(m.source)) + 1
-                end
-            end
-            return n
-        end
-        V = []
-        for v in values
-            push!(V, get_val(M, v))
-        end
-        return V
-    end
-
-    V = seeds
-    for a in A
-        V = process_values(a, V)
-    end
-    return V
 end
 
 function interval_except(i1, i2)
     return leftendpoint(i1)..leftendpoint(i2), rightendpoint(i2)..rightendpoint(i1)
 end
 
-function map_source_range!(ranges, r, M::HortMap2)
-    NR = []
-    while length(ranges) > 0
-        r = pop!(ranges)
-        i = r ∩ m.source
-        # width(i) == 0 && continue
-        # dst = src_to_dst(M, leftendpoint(i)) .. src_to_dst(M, rightendpoint(i))
-        before, after = interval_except(r, i)
-        width(before) > 0 && push!(NR, before)
-        w = leftendpoint(m.source)+leftendpoint(m.dest) #+ 1
-        # TODO: pm?
-        width(i) > 0 && push!(ranges, leftendpoint(i)-w, rightendpoint(i)+w)
-        width(after) && push!(NR, after)
-    end
-
-
-    return 0
-
+function process_values!(R, M)
+    A = []
     for m in M.maps
-        println(r, " n ", m.source, "->", r ∩ m.source)
-        i = r ∩ m.source
-        width(i) == 0 && continue
-        dst = src_to_dst(M, leftendpoint(i)) .. src_to_dst(M, rightendpoint(i))
-        push!(ranges, dst)
-
-        i == r && return ranges
-        for r2 in interval_except(r, i)
-            map_source_range!(ranges, r2, M)
+        NR = []
+        while length(R) > 0
+            r = pop!(R)
+            i = r ∩ m.src
+            # dst = src_to_dst(M, leftendpoint(i)) .. src_to_dst(M, rightendpoint(i))
+            before = leftendpoint(r)..min(rightendpoint(r), leftendpoint(m.src))
+            after = max(rightendpoint(m.src), leftendpoint(r)) .. rightendpoint(r)
+            width(before) > 0 && push!(NR, before)
+            # TODO: pm?
+            width(i) > 0 && push!(A, leftendpoint(i)-leftendpoint(m.src)+leftendpoint(m.dst)..rightendpoint(i)-leftendpoint(m.src)+leftendpoint(m.dst))
+            width(after) > 0 && push!(NR, after)
         end
-        # append!(inputs, interval_except(r, i))
+        append!(R, NR)
     end
-
-    push!(ranges, r)
-    return ranges
+    append!(R, A)
 end
 
 function part2(data)
-    seeds, M = re_parse_data(data)
+    seeds, M = data
+    seeds = parse_seeds(seeds)
 
 
     S = []
     for s in seeds
         R = [s]
         for m in M
-            function f!(R, M)
-                A = []
-                for m in M.maps
-                    NR = []
-                    while length(R) > 0
-                        r = pop!(R)
-                        i = r ∩ m.source
-                        # i = max(leftendpoint(r), leftendpoint(m.source))..min(rightendpoint(m.source), rightendpoint(r))
-                        # println(i == r ∩ m.source)
-                        # width(i) == 0 && continue
-                        # dst = src_to_dst(M, leftendpoint(i)) .. src_to_dst(M, rightendpoint(i))
-                        # before, after = interval_except(r, i)
-                        before = leftendpoint(r)..min(rightendpoint(r), leftendpoint(m.source))
-                        after = max(rightendpoint(m.source), leftendpoint(r)) .. rightendpoint(r)
-                        # println(interval_except(r, i) == (before, after))
-                        width(before) > 0 && push!(NR, before)
-                        # println(NR)
-                        # w = leftendpoint(m.source)+leftendpoint(m.dest) #+ 1
-                        # w = leftendpoint(m.source) + leftendpoint(m.dest)
-                        # TODO: pm?
-                        # width(i) > 0 && push!(A, leftendpoint(i)-w .. rightendpoint(i)+w)
-                        # width(i) > 0 && push!(A, i)
-                        width(i) > 0 && push!(A, leftendpoint(i)-leftendpoint(m.source)+leftendpoint(m.dest)..rightendpoint(i)-leftendpoint(m.source)+leftendpoint(m.dest))
-                        width(after) > 0 && push!(NR, after)
-                    end
-                    append!(R, NR)
-                end
-                append!(R, A)
-            end
-            f!(R, m)
+            process_values!(R, m)
         end
-        # push!(S, minimum.(leftendpoint.(R)))
         push!(S, minimum(leftendpoint.(R)))
-        # push!(S, R)
     end
     return minimum(S)
-
-    NR = []
-    while length(ranges) > 0
-        r = pop!(ranges)
-        i = r ∩ m.source
-        # width(i) == 0 && continue
-        # dst = src_to_dst(M, leftendpoint(i)) .. src_to_dst(M, rightendpoint(i))
-        before, after = interval_except(r, i)
-        width(before) > 0 && push!(NR, before)
-        w = leftendpoint(m.source)+leftendpoint(m.dest) #+ 1
-        # TODO: pm?
-        width(i) > 0 && push!(ranges, leftendpoint(i)-w, rightendpoint(i)+w)
-        width(after) && push!(NR, after)
-    end
-
-
-
-
-    return 0
-
-    seeds, D = re_parse_data(data)
-
-    R = []
-    for r in seeds
-        for m in A
-            # println(m)
-            map_source_range!(R, r, m)
-        end
-    end
-    println()
-    println(minimum(leftendpoint.(R)))
-
-    return 0
-
-    # error("Not yet implemented")
-
-    # for R in seeds
-        # for n in range(R)
-
-        # end
-    # end
-
-    R = []
-    while length(seeds) > 0
-        r = pop!(seeds)
-        l1 = length(R)
-        for a in A
-            # a ∩ b
-        end
-    end
-
-    # return 0
-    function apply_range(R, a)
-        A = []
-        for m in a.maps
-            src_start = leftendpoint(m.source)
-            src_end = rightendpoint(m.source)
-            NR = []
-            while R
-                # [st                                     ed)
-                #          [src       src_end]
-                # [BEFORE ][INTER            ][AFTER        )
-                r = pop!(R)
-                int = r ∩ m.source
-                before = leftendpoint(r) .. leftendpoint(int)
-                after = rightendpoint(int) .. rightendpoint(r)
-            end
-        end
-    end
-
-    # A = []
-    B = []
-    for a in A
-        for m in a.maps
-
-        end
-    end
-
-
-    return 0
-
-    V = seeds
-    for a in A
-        function process_values(M::HortMap2, values)
-            function get_val(M::HortMap2, n::Int)
-                for m in M.maps
-                    if n ∈ m.source
-                        return leftendpoint(m.dest) + (n - leftendpoint(m.source)) + 1
-                    end
-                end
-                return n
-            end
-            V = []
-            for v in values
-                push!(V, get_val(M, v))
-            end
-            return V
-        end
-        V = process_values(a, V)
-    end
-    return minimum(V)
-
-
-    return 0
-    # TODO: work backwards?
-    println(typeof(data[2]))
-    for d in data[2]
-        println(d.desc)
-        println("    ", get_min(d))
-    end
-    println(get_min(data[2]))
-    return 0
-
-    # return 0
-    V1, A = data
-    V = []
-    for i in 1:2:(length(V1)-1)
-        for v in V1[i]:(V1[i]+V1[i+1]-1)
-            push!(V, v)
-        end
-    end
-    println(V)
-    for a in A
-        V = process_values(a, V)
-    end
-    return V
-    return minimum(V)
 end
 
 function main()
     data = parse_input("data05.txt")
-    # data = parse_input("data05.test.txt")
-    # println(data[1])
-    # println(data)
-    # println(process_values(data[2][1], data[1]))
 
     # Part 1
-    # part1_solution = part1(data)
-    # @assert part1_solution ==
-    # println("Part 1: $part1_solution")
+    part1_solution = part1(data)
+    @assert part1_solution == 107430936
+    println("Part 1: $part1_solution")
 
     # Part 2
     part2_solution = part2(data)
-    # @assert part2_solution ==
-    println("Part 2: \n$part2_solution")
+    @assert part2_solution == 23738616
+    println("Part 2: $part2_solution")
 end
 
 main()
