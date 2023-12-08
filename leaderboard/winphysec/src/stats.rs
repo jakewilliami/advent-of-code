@@ -1,4 +1,4 @@
-use super::dates::{TimeSummary, get_seconds_since_day_start};
+use super::dates::{get_seconds_since_day_start, TimeSummary};
 
 pub struct StarStats {
     pub n: usize,
@@ -13,10 +13,7 @@ pub struct DayStats {
 
 impl DayStats {
     fn new(day: usize) -> Self {
-        DayStats {
-            day,
-            stats: vec![],
-        }
+        DayStats { day, stats: vec![] }
     }
 }
 
