@@ -1,112 +1,151 @@
-using StatsBase, OrderedCollections
+# TODO: describe each hand type
+# TODO: make enum for hand types
+# https://www.reddit.com/r/adventofcode/comments/18cr4xr/ <- better test input because i was having trouble correctly but efficiently determining full house with jokers
 
-CARDS = ['A', 'K', 'Q', 'J', 'T', '9', '8', '7', '6', '5', '4', '3', '2']
-CARDS2 = ['A', 'K', 'Q', 'T', '9', '8', '7', '6', '5', '4', '3', '2', 'J']
-MAIN_PRINT = false
-PRINTED = []
+using Base.Iterators
+using OrderedCollections, StatsBase
+
+
+### Parse Input ###
+
+CARDS = "AKQJT98765432"
+CARDS_WITH_JOKERS = "AKQT98765432J"
+@assert Set(CARDS) == Set(CARDS_WITH_JOKERS)
 
 struct Hand
     hand::String
     bet::Int
 
     function Hand(hand::S, n::Int) where {S <: AbstractString}
-        # @assert length(hand) == 5
+        @assert length(hand) == 5
         hand = uppercase(hand)
         @assert all(c in CARDS for c in hand)
         new(String(hand), n)
     end
 end
 
-# TODO: validate these
+Base.unique(hand::Hand) = join(unique(hand.hand))
+StatsBase.countmap(hand::Hand) = countmap(hand.hand)
+Base.convert(::AbstractDict{T, I}, h::Hand) where {T, I <: Integer} = countmap(hand)
+
 function parse_input(input_file::String)
-    L = readlines(input_file)
-    L = [split(l) for l in L]
-    return [Hand(a, parse(Int, b)) for (a, b) in L]
+    L = [split(l) for l in eachline(input_file)]
+    return Hand[Hand(a, parse(Int, b)) for (a, b) in L]
 end
 
-function _is_noak(D, n)
-    for (k, v) in D
-        v >= n && return true, k
-    end
-    return false, Char(0)
-end
-function is_noak(hand::Hand, n)
-    D = countmap(hand.hand)
-    for v in values(D)
-        v >= n && return true
-    end
-    return false
+@enum HandType begin
+    five_of_a_kind = 1
+    four_of_a_kind
+    full_house
+    three_of_a_kind
+    two_pair
+    one_pair
+    high_card
+    none
 end
 
-is_5oak(hand::Hand) = is_noak(hand, 5)
-is_4oak(hand::Hand) = is_noak(hand, 4)
-is_3oak(hand::Hand) = is_noak(hand, 3)
-function is_fh(hand::Hand)
-    D = countmap(hand.hand)
-    has_3, card_3 = _is_noak(D, 3)
-    has_3 && pop!(D, card_3)
-    has_2, card_2 = _is_noak(D, 2)
-    return has_3 && has_2
-end
-function np(hand::Hand)
-    D = countmap(hand.hand)
-    m = 0
-    for v in values(D)
-        if v >= 2
-            m += 1
-        end
-    end
-    return m
-end
-is_p(hand::Hand, n) = np(hand) == n
-is_2p(hand::Hand) = is_p(hand, 2)
-is_1p(hand::Hand) = is_p(hand, 1)
-is_hi(hand::Hand) = length(countmap(hand.hand)) == 5
+### Helpers ###
 
+# The `has_counts' function checks that some count map `D' contains
+# the count or counts specified.  For example,
+#   julia> @assert has_counts(Hand("QQVPM", 0), 1)
+#   julia> @assert has_counts(Hand("QQVVM", 0), (2, 2))
+#   julia> @assert !has_counts(Hand("QQVPM", 0), (2, 2))
+#   julia> @assert has_counts(Hand("QQVPM", 0), (2, 1, 1))
+has_counts(D::AbstractDict{T, Int}, n::I) where {T, I <: Integer} =
+    any(v == n for v in values(D))
+function has_counts(D::AbstractDict{T, I}, Ns) where {T, I <: Integer}
+    Ns = countmap(Ns)
+    for (k, v) in Ns
+        occurrences = sum(dv == k for (dk, dv) in D)
+        v == occurrences || return false
+    end
+
+    return true
+end
+has_counts(h::Hand, n) = has_counts(countmap(h), n)
+
+
+### Part 1 ###
+
+# A card is `n' of a kind if at least one card occurs n (or more) times
+# in the hand
+is_n_of_a_kind(D::AbstractDict{T, I}, n::Int) where {T, I <: Integer} =
+    !isnothing(findfirst(v -> v >= n, D))
+is_n_of_a_kind(hand::Hand, n::Int) = is_n_of_a_kind(countmap(hand), n)
+
+# As we have the `is_n_of_a_kind' function, we can utilise it here
+is_5_of_a_kind(hand) = is_n_of_a_kind(hand, 5)
+is_4_of_a_kind(hand) = is_n_of_a_kind(hand, 4)
+is_3_of_a_kind(hand) = is_n_of_a_kind(hand, 3)
+
+# A card should be considered full house if it has 3 occurrences of
+# one card and 2 of another
+is_full_house(hand) = has_counts(hand, (3, 2))
+
+# We can calculate the number of pairs in the countmap of a hand.
+# Using this, it is trivial to check if the number of pairs is 1 or 2
+n_pairs(hand::AbstractDict{T, I}) where {T, I <: Integer} = sum(v == 2 for (_, v) in hand)
+n_pairs(hand::Hand) = n_pairs(countmap(hand))
+is_2_pair(hand) = n_pairs(hand) == 2
+is_1_pair(hand) = n_pairs(hand) == 1
+
+# A high card contains five unique cards (no double-ups)
+is_high_card(hand) = length(unique(hand)) == 5
+
+# A card is scored based on its position in the card array:
+# those that appear first have a higher value
 function score_card(card::Char; cards = CARDS)
-    # I was still using CARDS rather than the kwarg in this function for part 2...
     i = findfirst(==(card), cards)
     return length(cards) - i + 1
 end
+score_card(h::Hand, i::Int; cards = CARDS) = score_card(h.hand[i], cards = cards)
 
-function score_hand(hand::Hand)
-    scores = [is_5oak, is_4oak, is_fh, is_3oak, is_2p, is_1p, is_hi, h -> true]
-    i = findfirst(f -> f(hand), scores)
-    return length(scores) - i + 1
-    if is_5oak(hand)
-        return 6
-    elseif is_4oak(hand)
-        return 5
-    elseif is_fh(hand)
-        return 4
-    elseif is_3oak(hand)
-        return 3
-    elseif is_2p(hand)
-        return 2
-    elseif is_1p(hand)
-        return 1
-    end
-    return 0
+# Using our various functions, we can classify the hand by finding the highest
+# scoring matching pattern for the hand, and returning the corresponding HandType
+function classify_hand(hand::Hand)
+    scores = [
+        is_5_of_a_kind,
+        is_4_of_a_kind,
+        is_full_house,
+        is_3_of_a_kind,
+        is_2_pair,
+        is_1_pair,
+        is_high_card,
+        h -> true,
+    ]
+    i = findfirst(f -> f(countmap(hand)), scores)
+    return HandType(i)
 end
 
-function _correct_order(left::Hand, right::Hand, sh, sc)
-    a, b = sh(left), sh(right)
+# Hands are scored such that the classification that appears earlier in the HandType
+# enum has a greater score
+function score_hand(hand::Hand, classify_fn::Function)
+    type = classify_fn(hand)
+    return length(instances(HandType)) - Int(type) + 1
+end
+
+# Calculate whether left and right hands are ordered in ascending order.  To do this,
+# we need to score the hand (with the given classification function).  If they have the
+# same type, we need to break the tie based on cards from left to right.
+function _correct_order(left::Hand, right::Hand, classify_fn::Function; cards = CARDS)
+    a, b = score_hand(left, classify_fn), score_hand(right, classify_fn)
     a != b && return a < b
     i = 1
     while i <= 5
-        c1, c2 = sc(left.hand[i]), sc(right.hand[i])
+        c1, c2 = score_card(left, i, cards = cards), score_card(right, i, cards = cards)
         c1 != c2 && return c1 < c2
         i += 1
     end
-    error("Hopefully unreachable")
+    error("Hopefully unreachable, ortherwise we have a tie (do we return false here?)")
 end
 
-correct_order(left::Hand, right::Hand) = _correct_order(left, right, score_hand, score_card)
-
+# Overload the Ordering struct for a custom ordering type, providing support to `sort'
 struct HandOrdering <: Base.Order.Ordering end
-Base.Order.lt(_o::HandOrdering, a, b) = correct_order(a, b)
+Base.Order.lt(_o::HandOrdering, a, b) =
+    _correct_order(a, b, classify_hand; cards = CARDS)
 
-function score_cards(data, ordering)
+function score_cards(data::Vector{Hand}, ordering::Base.Order.Ordering)
     res = 0
     for (i, h) in enumerate(sort(data, order = ordering))
         res += i * h.bet
@@ -114,272 +153,150 @@ function score_cards(data, ordering)
     return res
 end
 
-part1(data) = score_cards(data, HandOrdering())
-
-score_card2(card::Char) = score_card(card, cards=CARDS2)
-
-function has_counts(D, n::Int)
-    for v in values(D)
-        if v == n
-            return true
-        end
-    end
-    return false
-end
-
-function has_counts(D, Ns)
-    Ns = countmap(Ns)
-    # D: 'a' => 1, 'b' => 2, 'c' => 2
-    # Ns: 2 => 2, 1 => 1
-    for (k, v) in Ns
-        # for example, if k = 2, v = 1, we want to check that 2 occurs exactly once as a count in D
-        occurrences = sum(dv == k for (dk, dv) in D)
-        v == occurrences || return false
-    end
+part1(data::Vector{Hand}) = score_cards(data, HandOrdering())
 
 
-    return true
+### Part 2 ###
 
-    return D == Ns
-
-    Ns = Set(Ns)
-    Vs = Set{eltype}()
-    for v in values(D)
-        if v in Ns
-            push!(Vs, v)
-        end
-    end
-    # println(Vs, Ns)
-    return Ns == Vs
-end
-
-function has_counts(D, Ns...)
-    return all(has_counts(D, n) for n in Ns)
-end
-
-function _is_noak2(hand::Hand, n::Int)
-    D = countmap(hand.hand)
+# A card is `n' of a kind if at least one card occurs n (or more) times in the hand.  However,
+# when taking jokers into consideration, any given card's count of occurances only has to be
+# supplemented/augmented by the number of jokers.
+function is_n_of_a_kind_with_jokers(D::AbstractDict{T, I}, n::Int) where {T, I <: Integer}
+    is_n_of_a_kind(D, n) && return true
     js = pop!(D, 'J', 0)
+    js == 0 && return false
 
-    # J cards can pretend to be whatever card is best for the purpose of determining hand type
-    # I think we need to do this differently
-    for c in CARDS2
-        m = get(D, c, 0)
-        if (n - m) <= js
-            return true, c
-        end
-    end
-    return false, Char(0)
-
-    c = Char(0)
-    for (k, v) in D
-        if v >= n
-            c = k
-            break
-        end
-    end
-    is_noak(hand, n) && js < n && return true, c
-    js = pop!(D, 'J', 0)  # TODO: get or pop!?
-    for (k, v) in D
-        @assert v < n
-        if (n - v) <= js
-            return true, k
-        end
-    end
-    return false, Char(0)
+    # If a card has count `v', and we want to reach n, then n - v must be within
+    # the number of jokers we have available.  Note: because we already checked
+    # for standard n of a kind, v must be < n.
+    return !isnothing(findfirst(v -> (n - v) <= js, D))
 end
+is_n_of_a_kind_with_jokers(hand::Hand, n::Int) = is_n_of_a_kind_with_jokers(countmap(hand), n)
 
-function is_noak2(hand::Hand, n::Int)
-    is_noak(hand, n) && return true
+# As we have the `is_n_of_a_kind_with_jokers' function, we can utilise it here
+is_5_of_a_kind_with_jokers(hand) = is_n_of_a_kind_with_jokers(hand, 5)
+is_4_of_a_kind_with_jokers(hand) = is_n_of_a_kind_with_jokers(hand, 4)
+is_3_of_a_kind_with_jokers(hand) = is_n_of_a_kind_with_jokers(hand, 3)
 
-    has_n, card_n = _is_noak2(hand, n)
-    return has_n
-
-
-    D = countmap(hand.hand)
-    # println("$n of a kind ($(hand.hand)): ", D)
-    js = pop!(D, 'J', 0)  # TODO: get or pop!?
-
-    return any((js == (n - i) && has_counts(D, i)) for i in 0:5)
-    return (js == (n - 1) && has_counts(D, n))
-
-
-    # println(D, "   ", js)
-    for v in values(D)
-        # println(v)
-        @assert v < n
-        # println("($n - $v) >= $js: ($((n - v) >= js))")
-        # if (n - v) >= (n - js)
-        if (n - v) <= js
-            return true
-        end
-    end
-    return false
-end
-is_5oak2(hand::Hand) = is_noak2(hand, 5)
-is_4oak2(hand::Hand) = is_noak2(hand, 4)
-is_3oak2(hand::Hand) = is_noak2(hand, 3)
-function is_fh2(hand::Hand)
-    # TODO: clean up
-    # println("hii")
-    is_fh(hand) && return true
-    D = countmap(hand.hand)
+# The full house classification with jokers is decidedly the most complicated case.  Recall,
+# we must have one card occurring 3 times and another occuring 2.  However, if we have jokers,
+# we need to check if they are sufficient to supplement the cards with the count closest to
+# 3 and 2 counts.
+function is_full_house_with_jokers(D::AbstractDict{T, I}) where {T, I <: Integer}
+    is_full_house(D) && return true
     js = pop!(D, 'J', 0)
-    D2 = countmap(values(D))
+    js == 0 && return false
 
-    return (js == 1 && has_counts(D, (2, 2))) || (js == 2 && has_counts(D, (2, 1))) || (js == 3 && has_counts(D, (1, 1))) || (js == 4 && has_counts(D, 2)) || (js == 5 && has_counts(D, 1))
+    # Case 1: there are less than 2 distinct cards after jokers
+    # have been removed from the hand.  In this case, you must
+    # have a sufficient number of jokers to make up the full house
+    if length(D) < 2
+        # Case 1.1: the deck only consists of jokers, so you can
+        # make a full house
+        isempty(D) && return true
 
-    return js == 1 && has_counts(D, (2, 2))
-
-    # The only way to get full house with jokers is if you have 1 joker, and 2x2 other things
-    return get(D2, 2, 0) == 2 && js == 1
-
-    if isempty(D)
-        @assert js == 5
-        return true
-    end
-    # println("hi")
-
-    has_3, card_3 = _is_noak2(hand, 3)
-    # println(hand.hand, " ", has_3, card_3, D)
-    has_3 && pop!(D, card_3)
-    isempty(D) && return false
-    hand = Hand(join(collect(keys(D))), hand.bet)
-    has_2, card_2 = _is_noak2(hand, 2)
-    # println(hand.hand, " ", has_2, card_2, D)
-    has_2 && pop!(D, card_2)
-    isempty(D) && return false
-    hand = Hand(join(collect(keys(D))), hand.bet)
-
-    maxes = reverse(collect(sort(D)))
-    k1, m1 = maxes[1]
-
-    # println("!!! $js")
-    if has_3 && js >= max(2 - m1, 0)
-        println("Found $card_3 had 3 and $k1 had $m1 with $js jokers")
-    end
-    has_3 && return js >= max(2 - m1, 0)
-    if has_2 && js >= max(3 - m1, 0)
-        println("Found $card_2 had 2 and $k1 had $m1 with $js jokers")
-    end
-    has_2 && return js >= max(3 - m1, 0)
-
-    length(maxes) >= 2 || return false
-    k2, m2 = maxes[2]
-
-    js_for_3 = max(3 - m1, 0)
-    enough_js_for_3 = js >= js_for_3
-    js = max(js - js_for_3, -1)
-    js_for_2 = max(2 - m2, 0)
-    enough_js_for_2 = js >= js_for_2
-
-    if enough_js_for_3 && enough_js_for_2
-        println("Found $k1 with $m1 and $k2 with $m2 and $js jokers ($js_for_3, $enough_js_for_3, $js_for_2, $enough_js_for_2)")
-    end
-    return enough_js_for_3 && enough_js_for_2
-    return js <= (min(3 - m1, 0) + min(2 - m2, 0))
-
-    found_3, found_2 = false, false
-    for (k, v) in copy(D)
-        if v == 3
-            found_3 = true
-            pop!(D, k)
-        end
-        if v == 2
-            found_2 = true
-            pop!(D, k)
-        end
-    end
-    @assert !(found_3 && found_2)
-
-    max2 = []
-    maxvs = sort(collect(values(D)),rev=true)
-    for (k, v) in D
-        length(max2) == 2 && break
-        if maxvs[1] == v
-            push!(max2, k)
-            popfirst!(maxvs)
-        end
+        # Case 1.2: the deck consists of one other card, so we need
+        # to check that:
+        #   a. the other card does not occur more than thrice; and
+        #   b. there are a sufficient number of jokers to make up
+        #      the desired deck
+        v = last(only(D))
+        v > 3 && return false
+        return ((3 - v) + 2) <= js
     end
 
-    if isempty(max2)
-        return false
-    end
+    # Case 2: we know there are at least 2 other distinct cards after
+    # jokers have been removed from the hand.  We take the 2 with the
+    # highest occurrences and try to use them to make up the desired
+    # deck
+    D = OrderedDict(D)
+    sort!(D; byvalue = true, rev = true)
+    (k1, v1), rest = Iterators.peel(D)
+    (k2, v2), _rest = Iterators.peel(rest)
 
-    m1 = D[max2[1]]
-    if found_3
-        return js <= min(2 - m1, 0)
-    end
-    if found_2
-        return js <= min(3 - m1, 0)
-    end
-    if length(max2) < 2
-        return false
-    end
-    m2 = D[max2[2]]
-    return js <= ((3 - m1) + (2 - m2))
-    return js <= (min(3 - m1, 0) + min(2 - m2, 0))
+    # println(((k1, v1), (k2, v2)))
+
+    # Case 2.1: If the most frequent card occurs more than 3 times, then
+    # making a full house is impossible
+    v1 > 3 && return false
+
+    # Case 2.2: We must now check that the most frequent card can be augmented
+    # by the jokers to make up 3
+    (3 - v1) <= js || return false
+    js -= (3 - v1)
+
+    # Case 2.3: We do the same for the second most frequent
+    v2 > 2 && return false
+    return (2 - v2) <= js
 end
-function is_p2(hand::Hand, n)
-    is_p(hand, n) && return true
-    npairs = np(hand)
-    n -= npairs
-    D = countmap(hand.hand)
+is_full_house_with_jokers(hand::Hand) = is_full_house_with_jokers(countmap(hand))
+
+# To have n pairs with jokers, we need to check that either the count itself already
+# constitutes a pair, or that we can supplement the count up to 2 with some amount of
+# jokers.  Hence, we can calculate the number of pairs with these two cases
+function n_pairs_with_jokers(D::AbstractDict{T, I}) where {T, I <: Integer}
     js = pop!(D, 'J', 0)
     m = 0
     for v in values(D)
-        # println(hand, D, js)
-        v >= 2 && continue
-        @assert v != 2
-        if (2 - v) <= js
+        if v >= 2
+            # Case 1: the count of this card already constitutes a pair
+            m += 1
+        elseif (2 - v) <= js
+            # Case 2: this card does not constitute a pair, but we can
+            # make up a pair by supplementing this card with jokers
             js -= (2 - v)
             m += 1
         end
     end
-    return m == n
+
+    return m
 end
-is_2p2(hand::Hand) = is_p2(hand, 2)
-is_1p2(hand::Hand) = is_p2(hand, 1)
-function is_hi2(hand::Hand)
-    is_hi(hand) && return true
-    D = countmap(hand.hand)
+n_pairs_with_jokers(hand::Hand) = n_pairs_with_jokers(countmap(hand))
+is_2_pair_with_jokers(hand) = n_pairs_with_jokers(hand) == 2
+is_1_pair_with_jokers(hand) = n_pairs_with_jokers(hand) == 1
+
+# A high card with jokers means that either the hand is a traditional high card
+# (without any jokers), or that you have n distinct cards and (5 - n) joker cards
+# that make up the rest of the unique cards required for the high card pattern.
+function is_high_card_with_jokers(D::AbstractDict{T, I}) where {T, I <: Integer}
+    is_high_card(D) && return true
     js = pop!(D, 'J', 0)
+    js == 0 && return false
     return (5 - length(D)) <= js
-    return (5 - length(D)) >= js
+end
+is_high_card_with_jokers(hand::Hand) = is_high_card_with_jokers(countmap(hand))
+
+# Using our various functions, we can classify the hand by finding the highest
+# scoring matching pattern for the hand, and returning the corresponding HandType.
+# However, in this case, we want to classify the hand with the `_with_jokers'
+# function variations.
+function classify_hand_with_jokers(hand::Hand)
+    scores = [
+        is_5_of_a_kind_with_jokers,
+        is_4_of_a_kind_with_jokers,
+        is_full_house_with_jokers,
+        is_3_of_a_kind_with_jokers,
+        is_2_pair_with_jokers,
+        is_1_pair_with_jokers,
+        is_high_card_with_jokers,
+        h -> true,
+    ]
+    i = findfirst(f -> f(countmap(hand)), scores)
+    return HandType(i)
 end
 
-function score_hand2(hand::Hand)
-    scores = [is_5oak2, is_4oak2, is_fh2, is_3oak2, is_2p2, is_1p2, is_hi2, h -> true]
-    i = findfirst(f -> f(hand), scores)
-    if MAIN_PRINT && !(hand.hand in PRINTED)
-        # if contains(hand.hand, 'J') && scores[i] in (is_2p2, is_1p2) #&& !(scores[i] in (is_fh2, is_3oak2, is_5oak2, is_4oak2))
-            # println(hand.hand, ": ", scores[i], " <- ", countmap(hand.hand))
-        # if get(countmap(hand.hand), 'J', 0) > 1
-        # if scores[i] == is_3oak2 && contains(hand.hand, 'J')
-        if contains(hand.hand, 'J')
-            # println(hand.hand, ": ", scores[i], " <- ", countmap(hand.hand))
-        end
-        push!(PRINTED, hand.hand)
-    end
-    return length(scores) - i + 1
-end
-
-correct_order2(left::Hand, right::Hand) = _correct_order(left, right, score_hand2, score_card2)
-
+# Overload the Ordering struct for a custom ordering type, providing support to `sort'
 struct HandOrderingWithJokers <: Base.Order.Ordering end
-Base.Order.lt(_o::HandOrderingWithJokers, a, b) = correct_order2(a, b)
+Base.Order.lt(_o::HandOrderingWithJokers, a, b) =
+    _correct_order(a, b, classify_hand_with_jokers, cards = CARDS_WITH_JOKERS)
 
-part2(data) = score_cards(data, HandOrderingWithJokers())
+part2(data::Vector{Hand}) = score_cards(data, HandOrderingWithJokers())
+
+
+### Main ###
 
 function main()
-    # println(is_fh(Hand("T777T", 0)))
-    # println(is_5oak2(Hand("JJJ8J", 0)))
-    # h = Hand("J322A", 0)
-    # println(is_fh2(h))
-    # println(has_counts(countmap(h.hand), (2, 2)))
     data = parse_input("data07.txt")
-    # data = [Hand("JQJJJ", 0), Hand("JJJJJ", 0), Hand("JJJ8J", 0)]
-    # data = parse_input("data07.test.txt")
 
     # Part 1
     part1_solution = part1(data)
@@ -387,38 +304,9 @@ function main()
     println("Part 1: $part1_solution")
 
     # Part 2
-    sorted = sort(data, order = HandOrderingWithJokers())
-    # println("+"^20)
-    io = IOBuffer()
-    for h in sorted
-        function f(io, h)
-            scores = [is_5oak2, is_4oak2, is_fh2, is_3oak2, is_2p2, is_1p2, is_hi2, h -> true]
-            for f in scores
-                if f(h)
-                    f == scores[end] ? print(io, "catchall") : print(io, f)
-                    if f != scores[end]
-                        print(io, ", ")
-                    end
-                end
-            end
-            return String(take!(io))
-        end
-        # println("$(h.hand) ($(score_hand2(h))): $(f(io, h))")
-    end
-    # println("+"^20)
     part2_solution = part2(data)
     @assert part2_solution == 254412181
     println("Part 2: $part2_solution")
-    # not 253076657
-    # not 253112265
-    # not 253318025
-    # not 253472802
-    # not 254091927
-    # not 254126629: too low
-    #     254412181
-    # not 254866135
-    # not 256448566
-    # not 258647104: too high
 end
 
 main()
