@@ -1,14 +1,16 @@
 package main
 
 import (
-	"net/http"
-    "net/http/cookiejar"
 	"fmt"
-	"os"
+	"golang.org/x/net/html"
 	"io"
-    "golang.org/x/net/html"
+	"net/http"
+	"net/http/cookiejar"
+	"os"
 	"strings"
 )
+
+const AOC_YEAR int = 2022
 
 func main() {
 	sessionCookie := GetSessionCookie()
@@ -24,7 +26,7 @@ func main() {
 		Jar: jar,
 	}
 
-	url := "https://adventofcode.com/2021/leaderboard/self"
+	url := fmt.Sprintf("https://adventofcode.com/%d/leaderboard/self", AOC_YEAR)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		fmt.Println("[ERROR] creating request: ", err)
@@ -34,7 +36,6 @@ func main() {
 	AddReqHeaders(req, sessionCookie)
 
 	// Get page
-	
 	resp, err := client.Do(req)
 	if err != nil {
 		fmt.Println("[ERROR] sending request: ", err)
@@ -54,40 +55,14 @@ func main() {
 	}
 
 	// https://stackoverflow.com/a/38855264/
-	doc, _ := html.Parse(strings.NewReader(string(htm[:])))
-	
 	// https://stackoverflow.com/a/46311885
-	// htmlTokens := html.NewTokenizer(resp.Body)
+	doc, _ := html.Parse(strings.NewReader(string(htm[:])))
 
 	// Extract stats
-	statsHtml, err := ExtractStatsHtml(doc)
-    if err != nil {
-        return
-    }
-    body := renderNode(statsHtml)
-    fmt.Println(body)
-
-	// TODO: parse response
-
-	/*isMain := false
-loop:
-    for {
-        tt := htmlTokens.Next()
-        fmt.Printf("%T", tt)
-        switch tt {
-        case html.ErrorToken:
-            fmt.Println("End")
-            break loop
-        case html.TextToken:
-			if isMain {
-				fmt.Println(tt)
-			}
-        case html.StartTagToken:
-            t := htmlTokens.Token()
-			if t.Data == "main" {
-				isMain = !isMain
-                fmt.Println("We found the main!")
-			}
-        }
-    }*/
+	stats, err := ExtractStatsHtml(doc)
+	if err != nil {
+		fmt.Println("[ERROR] Failed to extract stats from HTML: ", err)
+		os.Exit(1)
+	}
+	ShowStats(stats)
 }

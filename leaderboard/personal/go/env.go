@@ -3,16 +3,16 @@ package main
 import (
 	"fmt"
 	"os"
-	
+
 	"github.com/joho/godotenv"
 )
 
-func GetSessionCookie()(string) {
+func GetSessionCookie() string {
 	if err := godotenv.Load(); err != nil {
 		fmt.Println("[ERROR] Could not load .env file: ", err)
 		os.Exit(1)
 	}
-	
+
 	sessionCookie := os.Getenv("SESSION_COOKIE")
 
 	if sessionCookie == "" {
