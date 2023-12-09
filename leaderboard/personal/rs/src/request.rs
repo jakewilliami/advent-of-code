@@ -1,11 +1,9 @@
+use super::AOC_YEAR;
 use reqwest::{header::HeaderMap, Client};
 
-// const BASE_URI: &str = "https://adventofcode.com/2022/leaderboard/private/view/";
-const BASE_URI: &str = "https://adventofcode.com/2022/leaderboard/self";
-
-pub async fn pull_leaderboard_data(session_cookie: String) -> String {
+pub async fn pull_personal_stats(session_cookie: String) -> String {
     // Construct URI
-    let url = format!("{}", BASE_URI);
+    let url = format!("https://adventofcode.com/{}/leaderboard/self", AOC_YEAR);
 
     // Set session cookie
     let mut headers = HeaderMap::new();

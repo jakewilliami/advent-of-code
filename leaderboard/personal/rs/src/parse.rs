@@ -1,67 +1,121 @@
-use html5ever::parse_document;
-use html5ever::tendril::TendrilSink;
-use rcdom::{Handle, NodeData, RcDom};
+use super::{
+    stats::{Date, DayPartStats, DayStats, Duration, Integer},
+    AOC_YEAR,
+};
+use chrono::{self, NaiveTime};
+use scraper::{Html, Selector};
+use std::collections::HashMap;
 
-// https://www.reddit.com/r/rust/comments/okuazu/comment/h5agwf5/
-// https://github.com/servo/html5ever
-// https://stackoverflow.com/a/38861580
-// https://github.com/servo/html5ever/blob/c0449301/rcdom/examples/print-rcdom.rs
-pub fn parse_html(data: String) -> RcDom {
-    let dom = parse_document(RcDom::default(), Default::default())
-        .from_utf8()
-        .read_from(&mut data.as_bytes())
-        .unwrap();
+// https://github.com/causal-agent/scraper
+// Uses html5 under the hood
+pub fn extract_stats(html: String) -> HashMap<usize, DayStats> {
+    let document = Html::parse_document(&html);
+    let main_selector = Selector::parse("main").unwrap();
+    let article_selector = Selector::parse("article").unwrap();
+    let pre_selector = Selector::parse("pre").unwrap();
 
-    walk(0, &dom.document);
+    let main = document.select(&main_selector).next().unwrap();
+    let article = main.select(&article_selector).next().unwrap();
+    let pre = article.select(&pre_selector).next().unwrap();
 
-    if !dom.errors.is_empty() {
-        println!("\nParse errors:");
-        for err in dom.errors.iter() {
-            println!("    {}", err);
-        }
-    }
-
-    return dom;
+    extract_stats_from_str(pre.inner_html())
 }
 
-fn walk(indent: usize, handle: &Handle) {
-    let node = handle;
-    for _ in 0..indent {
-        print!(" ");
+fn extract_stats_from_str(stats: String) -> HashMap<usize, DayStats> {
+    let mut map: HashMap<usize, DayStats> = HashMap::new();
+
+    // Skip the preamble (headers) that we don't care about
+    for line in stats.lines().skip(2) {
+        // TODO: consider using something like:
+        //   - github.com/veddan/rust-htmlescape; or
+        //   - github.com/phaazon/html-entities.
+        let line = line.replace("&gt;", ">");
+        let words: Vec<_> = line.split_whitespace().collect();
+
+        // Parse integers
+        let day = parse_int_from_stats(words[0]).unwrap(); // We should always have a day
+        let rank1 = parse_int_from_stats(words[2]);
+        let score1 = parse_int_from_stats(words[3]);
+        let rank2 = parse_int_from_stats(words[5]);
+        let score2 = parse_int_from_stats(words[6]);
+
+        // Parse durations
+        let time1 = parse_duration_from_stats(words[1]);
+        let time2 = parse_duration_from_stats(words[4]);
+
+        // Make day stats and push to map
+        let parts = DayStats {
+            date: Date {
+                day,
+                year: AOC_YEAR,
+            },
+            parts: [
+                DayPartStats {
+                    date: Date {
+                        day,
+                        year: AOC_YEAR,
+                    },
+                    part: 1,
+                    time: time1,
+                    rank: rank1,
+                    score: score1,
+                },
+                DayPartStats {
+                    date: Date {
+                        day,
+                        year: AOC_YEAR,
+                    },
+                    part: 2,
+                    time: time2,
+                    rank: rank2,
+                    score: score2,
+                },
+            ],
+        };
+        map.insert(day, parts);
     }
-    match node.data {
-        NodeData::Document => println!("#Document"),
+    map
+}
 
-        NodeData::Doctype {
-            ref name,
-            ref public_id,
-            ref system_id,
-        } => println!("<!DOCTYPE {} \"{}\" \"{}\">", name, public_id, system_id),
-
-        NodeData::Text { ref contents } => {
-            println!("#text: {}", contents.borrow().escape_default())
-        }
-
-        NodeData::Comment { ref contents } => println!("<!-- {} -->", contents.escape_default()),
-
-        NodeData::Element {
-            ref name,
-            ref attrs,
-            ..
-        } => {
-            assert!(name.ns == ns!(html));
-            print!("<{}", name.local);
-            for attr in attrs.borrow().iter() {
-                assert!(attr.name.ns == ns!());
-                print!(" {}=\"{}\"", attr.name.local, attr.value);
+fn parse_int_from_stats(n: &str) -> Integer {
+    match n {
+        "-" => Integer::Missing,
+        _ => match n.parse::<usize>() {
+            Ok(n) => Integer::Some(n),
+            Err(err) => {
+                println!("[WARNING] Failed to parse integer {n:?} as type `usize': {err}");
+                Integer::Unknown
             }
-            println!(">");
-        }
-
-        NodeData::ProcessingInstruction { .. } => unreachable!(),
+        },
     }
+}
 
-    for child in node.children.borrow().iter() {
-        walk(indent + 4, child);
+fn parse_duration_from_stats(d: &str) -> Duration {
+    match d {
+        "-" => Duration::Missing,
+        ">24h" => Duration::OverOneDay,
+        _ => {
+            let t1 = NaiveTime::parse_from_str(d, "%H:%M:%S");
+            match t1 {
+                Ok(t1) => {
+                    let t2 = NaiveTime::from_hms_opt(0, 0, 0).unwrap();
+                    let duration = t1.signed_duration_since(t2);
+                    Duration::Some(duration)
+                }
+                Err(err) => {
+                    println!("[WARNING] Failed to parse time string {d:?} as type `chrono::Duration': {err}");
+                    Duration::Unknown
+                }
+            }
+        }
+    }
+}
+
+impl Integer {
+    fn unwrap(&self) -> usize {
+        match self {
+            Integer::Some(n) => *n,
+            _ => panic!("Could not unwrap custom `Integer' type {:?}", self),
+        }
     }
 }
