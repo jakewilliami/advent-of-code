@@ -3,7 +3,7 @@ module AdventOfCode
 export Multidimensional
 export Parsing
 
-include("multidimensional.jl")
-include("parsing.jl")
+include("multidimensional/multidimensional.jl")
+include("parsing/parsing.jl")
 
 end
