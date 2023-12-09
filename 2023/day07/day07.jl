@@ -1,6 +1,23 @@
-# TODO: describe each hand type
-# TODO: make enum for hand types
-# https://www.reddit.com/r/adventofcode/comments/18cr4xr/ <- better test input because i was having trouble correctly but efficiently determining full house with jokers
+# This day was very interesting.  It's essentially a game of poker. There are 7
+# different kinds of hands that you can get, and we needed to sort the input based
+# on the higher scoring hands.  The value in the input is the bet amount for that
+# hand.
+#
+# Part 1 was straight forward.  We had sort the input based on hand classification
+# and calculate the response.
+#
+# Part 2 took me much longer than I care to admit.  We had to do the same, but the
+# Js were now jokers and could be used for anything!  I thought it would be easy
+# enough to extend code for part 1, but I had a lot of different bugs.  I had copy
+# errors using the wrong card set; mistakes where I forgot to decrement the number
+# of jokers available after using them.  The full house classification was the bane
+# of my existence, and I ended up getting a working solution using effectively brute
+# force:
+#   https://github.com/jakewilliami/advent-of-code/blob/c121f03a/2023/day07/day07.jl#L230
+# The following was helpful in developing a cleaner/more efficient solution for this
+# function:
+#   https://www.reddit.com/r/adventofcode/comments/18cr4xr/
+# The problem was simple by I am stupid so I found part 2 a little tricky.  Fun, though!
 
 using Base.Iterators
 using OrderedCollections, StatsBase

@@ -1,7 +1,25 @@
-# day 11 monkeys last year, day 6 fishes from 2021
-# 2 kinds of hard: memory and counting/iterations, fishes is memory hard, counting is maths hard
+# The data for this consisted of instructions on the first line, and a map of
+# nodes on the following lines.  What we had to do was to start at a certain
+# node and follow either the left or right node until we reach the end.  For
+# example:
+#   Instruction: L, Node: AAA = (BBB, CCC)
+#   We are on node A and must take the left (L) path to node BBB.
+#
+# Part 1 of the problem got us to start at node AAA and follow the map until
+# we reached node ZZZ.  This was straight forward.
+#
+# Part 2 is classic Advent of Code, reminding me of day 11 (monkeys) from last
+# year/day 13 (buses) from 2020, and a little of day 6 (too many fishes) from 2021.
+# We had to start simultaneously at *all* nodes ending with A, and go until they
+# all simultaneously meet nodes that end with Z.  This answer clearly uses the LCM,
+# or there may even be a CRT solution.  I hope I will gain that from these kinds of
+# problems.  I understand the solution for this question, but needed a nudge in the
+# right direction.  Hoping in the future I will have an intuition about these kinds
+# of solutions without any help.
+
 
 using Base.Iterators
+
 
 ### Parse Input ###
 
@@ -29,6 +47,7 @@ function parse_input(input_file::String)
     return InstructionMap(A, D)
 end
 
+
 ### Part 1 ###
 
 function follow_instruction(instruction::Char, fork::InstructionFork)
@@ -43,19 +62,17 @@ function solve_steps(start_node::String, map::InstructionMap, is_ending_node::Fu
     while !is_ending_node(node)
         instruction = map.instructions[i]
         node = follow_instruction(instruction, map.map[node])
-        i += 1; steps += 1
-        if i > length(map.instructions)
-            i = 1
-        end
+        steps += 1
+        i = mod1(i + 1, length(map.instructions))
     end
     return steps
 end
 
 function part1(data::InstructionMap)
     is_ending_node(node::String) = node == "ZZZ"
-    i, steps = 1, 0
     return solve_steps("AAA", data, is_ending_node)
 end
+
 
 ### Part 2 ###
 
@@ -63,7 +80,10 @@ function part2(data::InstructionMap)
     is_starting_node(node::String) = endswith(node, 'A')
     is_ending_node(node::String) = endswith(node, 'Z')
 
-    # 18df7px comment kcgrqgs
+    # Each starting node has a path of length n until it reaches an ending node.
+    # To get a solution where *all* ghosts have found their ending node simultaneously,
+    # we simply take the least common multiplier from each path, rather than
+    # modelling this ourselves.  18df7px comment kcgrqgs
     return lcm((solve_steps(n, data, is_ending_node) for n in keys(data) if is_starting_node(n))...)
 end
 
