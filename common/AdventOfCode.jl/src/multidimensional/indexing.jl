@@ -6,6 +6,8 @@ hasindex(M::AbstractArray{T}, i::CartesianIndex{N}) -> bool
 ```
 
 Does the array `M` have index `i`?
+
+See also: [`checkbounds`](@ref) and [`isassigned`](@ref).
 """
 hasindex(M::AbstractArray{T}, i::CartesianIndex{N}) where {T, N} = checkbounds(Bool, M, i)
 
