@@ -10,62 +10,17 @@
 # but I think there are likely easier ways to do this.  I found part 2 easier
 # than part 1, given my data format.
 
+
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
+
+
+### Parse Input ###
 
 parse_input(input_file::String) =
     readlines_into_char_matrix(input_file)
 
-function _parse_number(io::IOBuffer, data::Matrix{Char}, indices)
-    for j in indices
-        print(io, data[j])
-    end
-    s = String(take!(io))
-    return parse(Int, s)
-end
 
-function part1(data::Matrix{Char})
-    res = 0
-    int_parse_io = IOBuffer()
-
-    for (row_i, _row) in enumerate(eachrow(data))
-        i = CartesianIndex(row_i, 1)
-        while hasindex(data, i)
-            c = data[i]
-            if !isdigit(c)
-                i += INDEX_RIGHT
-                hasindex(data, i) || break
-                continue
-            end
-            is = CartesianIndex[]
-            j = i
-
-            # Collect indices that make up the number
-            while hasindex(data, j) && isdigit(data[j])
-                push!(is, j)
-                j = i + INDEX_RIGHT
-                i = j
-            end
-
-            # Check if number adjacent to symbol
-            adj_to_symbol = false
-            for i2 in is, c2 in cartesian_adjacencies(data, i2)
-                if !isdigit(c2) && c2 != '.'
-                    adj_to_symbol = true
-                    break
-                end
-            end
-
-            # Parse number
-            if adj_to_symbol
-                res += _parse_number(int_parse_io, data, is)
-            end
-            i += INDEX_RIGHT
-            hasindex(data, i) || break
-        end
-    end
-    return res
-end
-
+### Part 1 ###
 
 function _scan_number_indices(i::CartesianIndex{2}, data::Matrix{Char})
     is = CartesianIndex[i]
@@ -82,6 +37,87 @@ function _scan_number_indices(i::CartesianIndex{2}, data::Matrix{Char})
     end
     return sort(is)
 end
+
+function _parse_number(io::IOBuffer, data::Matrix{Char}, indices)
+    for j in indices
+        print(io, data[j])
+    end
+    s = String(take!(io))
+    return parse(Int, s)
+end
+
+is_symbol(c::Char) = !isdigit(c) && c != '.'
+
+function adjacent_to_symbol(number_is::Vector{CartesianIndex}, data::Matrix{Char})
+    for i in number_is
+        for c in cartesian_adjacencies(data, i)
+            is_symbol(c) && return true
+        end
+    end
+    return false
+end
+
+# See also final state of part 1 before implementing CartesianIndicesRowWise:
+#   https://github.com/jakewilliami/advent-of-code/blob/c233f857/2023/day03/day03.jl#L26-L67
+# This benchmarks faster than the row-wise solution (as expected).
+function part1(data::Matrix{Char})
+    res = 0
+    int_parse_io = IOBuffer()
+
+    numbers_seen = UInt[]
+
+    # Scan data for symbols and extract adjacent numbers
+    for i in CartesianIndices(data)
+        c = data[i]
+        is_symbol(c) || continue
+
+        # We found a symbol.  Get its surrounding digits
+        for (i2, c2) in cartesian_adjacencies_with_indices(data, i)
+            if isdigit(c2)
+                number_is = _scan_number_indices(i2, data)
+                if hash(number_is) ∈ numbers_seen
+                    continue
+                end
+                push!(numbers_seen, hash(number_is))
+                res += _parse_number(int_parse_io, data, number_is)
+            end
+        end
+    end
+
+    return res
+end
+
+
+function part1_rowwise(data::Matrix{Char})
+    res = 0
+    int_parse_io = IOBuffer()
+
+    numbers_seen = UInt[]
+    is_to_skip = CartesianIndex[]
+
+    for i in CartesianIndicesRowWise(data)
+        # Need to skip the rest of the number
+        isempty(is_to_skip) || popfirst!(is_to_skip)
+        i ∈ is_to_skip && continue
+
+        # Parse this one if it's a number that's adjacent to a symbol
+        c = data[i]
+        isdigit(c) || continue
+
+        number_is = _scan_number_indices(i, data)
+        num_hash = hash(number_is)
+
+        if adjacent_to_symbol(number_is, data) && num_hash ∉ numbers_seen
+            res += _parse_number(int_parse_io, data, number_is)
+        end
+        append!(is_to_skip,number_is)
+    end
+
+    return res
+end
+
+
+### Part 2 ###
 
 function part2(data::Matrix{Char})
     res = 0
@@ -117,7 +153,7 @@ function part2(data::Matrix{Char})
             n = _parse_number(int_parse_io, data, number_is)
             gear_numbers[gear_i] = vcat(get(gear_numbers, gear_i, []), [n])
         end
-        seen = []
+        seen = UInt[]
     end
 
     # Calculate answer
@@ -128,6 +164,7 @@ function part2(data::Matrix{Char})
     end
     return res
 end
+
 
 function main()
     data = parse_input("data03.txt")
