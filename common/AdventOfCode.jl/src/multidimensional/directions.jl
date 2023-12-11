@@ -1,4 +1,5 @@
-export direction
+export direction, is_direction
+export opposite_direction
 export cardinal_directions, orthogonal_directions, cartesian_directions
 export INDEX_LEFT, INDEX_RIGHT, INDEX_ABOVE, INDEX_BELOW
 export INDEX_TOP_LEFT, INDEX_TOP_RIGHT, INDEX_BOTTOM_LEFT, INDEX_BOTTOM_RIGHT
@@ -25,6 +26,35 @@ For example, in ℝ², `(-3, 4)` points in the `(-1, 1)` (the "top right" direct
 See also: [`cartesian_directions`](@ref) and [`cardinal_directions`](@ref).
 """
 direction(i::CartesianIndex{N}) where {N} = CartesianIndex{N}(map(sign, Tuple(i)))
+
+
+"""
+```julia
+is_direction(i::CartesianIndex{N}) -> bool
+```
+
+An index is classified as a direction if it has no magnitude, only sign.
+
+See also: [`direction`](@ref).
+"""
+is_direction(i::CartesianIndex{N}) where {N} = i == direction(i)  # all(∈(-1:1), i.I)
+
+
+"""
+```julia
+opposite_direction(d::CartesianIndex{N}) -> CartesianIndex{N}
+```
+
+Given some direction offset as a Cartesian index, find the opposite one.
+
+See also: [`direction`](@ref) and [`is_direction`](@ref).
+"""
+function opposite_direction(d::CartesianIndex{N}) where {N}
+    @assert is_direction(d)
+    # Reverse direction
+    r = _mk_cartesian_index(-one(eltype(d)), N)
+    return CartesianIndex(d.I .* r.I)
+end
 
 
 function _cartesian_directions(dim::I; include_origin::Bool = false) where {I <: Integer}

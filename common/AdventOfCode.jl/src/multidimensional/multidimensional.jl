@@ -1,5 +1,6 @@
 module Multidimensional
 
+include("index.jl")
 include("origin.jl")
 include("indexing.jl")
 include("indices.jl")
