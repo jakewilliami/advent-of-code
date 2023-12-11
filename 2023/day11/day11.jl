@@ -1,127 +1,90 @@
-# Copied some BFS code from 2022 day12
+# Today was interesting.  Another matrix problem.  We had a grid of galaxies (#) and empty space (.).
+# Each row and column that had no galaxies were to expand themselves.
+#
+# Part 1 of the problem required us to expand each row and column without galaxies in them once
+# (i.e., they duplicate in-place).  Then, for each pair of galaxies, moving in only cardinal
+# directions, find the smallest path between them and sum the results.  My initial implementation
+# of this simulated the problem exactly as it stated it, and was very slow:
+#   github.com/jakewilliami/advent-of-code/blob/664680f/2023/day11/day11.jl
+# I used some BFS code to find the shortest path, which I copied from day 12 of last year.
+#
+# Part 2 of the problem did the classic thing: instead of each row duplicating once, rows and columns
+# expand by one million.  It is no longer feasible to even construct such matrices, let alone simulate
+# path-finding on them.  I was stumped.  I found a clever solution here:
+#   https://www.reddit.com/r/adventofcode/comments/18fmrjk/comment/kcv853i/
+# And implemented it in Julia.  I now understand that we don't need to do BFS because we can only
+# move in cardinal directions.  As such, it is very easy to just multiply the rows we need to by an
+# expansion coefficient.  I will have to remember this path-finding nuance for next time, and not over-
+# complicate things so soon after I read the words "shortest" and "path"...
 
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
 using Combinatorics
-using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
 
-function parse_input(input_file::String)
-    return readlines_into_char_matrix(input_file)
-    L = readlines(input_file)
-    return L
-end
+parse_input(input_file::String) = readlines_into_char_matrix(input_file)
 
-rows_no_galaxies(data) = [i for (i, r) in enumerate(eachrow(data)) if all(==('.'), r)]
-cols_no_galaxies(data) = [i for (i, r) in enumerate(eachcol(data)) if all(==('.'), r)]
 
-function expand_galaxy(data, n = 1)
-    rs, cs = rows_no_galaxies(data), cols_no_galaxies(data)
-    ro, co = 0, 0
-    for ri in rs
-        data = cat(data[1:ri+ro, :], fill('.', n, size(data, 2)), data[ri+ro+1:end, :], dims = 1)
-        ro += 1
-    end
-    for ci in cs
-        data = cat(data[:, 1:ci+co], fill('.', size(data, 1), n), data[:, ci+co+1:end], dims = 2)
-        co += 1
-    end
-    return data
-end
+### Part 1 ###
 
+# Find axes without any galaxies
+_axis_no_galaxies(data::Matrix{Char}; dims = 1) = Set{Int}(i for (i, s) in enumerate(eachslice(data, dims = dims)) if all(==('.'), s))
+rows_no_galaxies(data::Matrix{Char}) = _axis_no_galaxies(data, dims = 1)
+cols_no_galaxies(data::Matrix{Char}) = _axis_no_galaxies(data, dims = 2)
+axes_no_galaxies(data::Matrix{Char}) = rows_no_galaxies(data), cols_no_galaxies(data)
+
+# Find galaxies (and pairs of galaxy)
 find_galaxies(data::Matrix{Char}) = findall(i -> data[i] == '#', CartesianIndices(data))
 galaxy_pairs(galaxies::Vector{CartesianIndex{2}}) = combinations(galaxies, 2)
 galaxy_pairs(data::Matrix{Char}) = galaxy_pairs(find_galaxies(data))
 
-# SLOOWWWWWW
-function _bfs_core(data::Matrix{Char}, target, Q::Queue{Tuple{CartesianIndex{2}, Int}}, S::Set{CartesianIndex{2}})
-    directions = cardinal_directions(2)
-    while !isempty(Q)
-        i, v = dequeue!(Q)
-        i ∈ S && continue
-        push!(S, i)
-        if i == target
-            return v
-        end
-        for d in directions
-            j = i + d
-            hasindex(data, j) || continue
-            # TODO: optimise somehow??
-            enqueue!(Q, (j, v + 1))
-        end
-    end
+# Calculate the shortest path between two galaxies, g1 and g2
+function shortest_path(g1::CartesianIndex, g2::CartesianIndex, empty_rows::Set{Int}, empty_cols::Set{Int}; expand_coeff::Int = 1)
+    n = max(expand_coeff - 1, 1)
+
+    # Because you can go through any point in the grid (i.e., other galaxies) to
+    # get to your destination, the fastest path to the target (other galazy) is
+    # diagonally.  However, because you can't go diagonally, zig-zagging the fastest
+    # route to the target.  In a grid, zig-zagging towards the target is equivalent
+    # to going horizontally to the column above or below the target, and then going
+    # vertically towards the target (i.e., in Pythagorean terms, c² = (a + b)²).
+    # To calculate this, we need to find the actual distance between the two galaxies
+    # on both dimensions.
+    a, b = min(g1, g2), max(g1, g2)  # wish `minmax' worked on CartesianIndices
+    (ay, ax), (by, bx) = a.I, b.I
+    dy, dx = Tuple(b - a)
+
+    # https://www.reddit.com/r/adventofcode/comments/18fmrjk/comment/kcv853i/
+    # Instead of simulating the maxtrix and expanding etc., we just find the number
+    # of rows/columns between the two galaxies that overlap with the empty rows,
+    # and add them n times to the distance between the two points.
+    return dy + length(empty_rows ∩ (ay:by)) * n +
+        dx + length(empty_cols ∩ (ax:bx)) * n
 end
 
-function find_shortest_path(g1, g2, data)
-    Q = Queue{Tuple{CartesianIndex{2}, Int}}()
-    enqueue!(Q, (g1, 0))
-    S = Set{CartesianIndex{2}}()
-    return _bfs_core(data, g2, Q, S)
+# Sum the shortest paths between all galaxy pairs
+function sum_shortest_paths(data::Matrix{Char}; expand_coeff::Int = 1)
+    rs, cs = axes_no_galaxies(data)
+    return sum(shortest_path(g1, g2, rs, cs, expand_coeff = expand_coeff) for (g1, g2) in galaxy_pairs(data))
 end
 
-function part1(data)
-    data = expand_galaxy(data)
-    res = 0
-    for (g1, g2) in galaxy_pairs(data)
-        res += find_shortest_path(g1, g2, data)
-    end
-    return res
-end
+part1(data::Matrix{Char}) = sum_shortest_paths(data)
 
 
 ### Part 2 ###
 
-function part2(data)
-    rs, cs = rows_no_galaxies(data), cols_no_galaxies(data)
-    n = 10
-    n = 1_000_000
-
-    res = 0
-    for (g1, g2) in galaxy_pairs(data)
-        (g1y, g1x), (g2y, g2x) = g1.I, g2.I
-
-        ax, bx = min(g1x, g2x), max(g1x, g2x)
-        ay, by = min(g1y, g2y), max(g1y, g2y)
-
-        # https://www.reddit.com/r/adventofcode/comments/18fmrjk/comment/kcv853i/
-        res += (by - ay) + length(rs ∩ (ay:by))*(n - 1)
-        res += (bx - ax) + length(cs ∩ (ax:bx))*(n - 1)
-    end
-
-    return res
-
-
-    n = 1_000_000
-    n = 10
-    # n = 100
-    data = expand_galaxy(data, n - 1)
-    res = 0
-    for (g1, g2) in galaxy_pairs(data)
-        sp = find_shortest_path(g1, g2, data)
-        # println("g1: $g1, g2: $g2, sp: $sp")
-        res += sp
-    end
-    return res
-end
+part2(data::Matrix{Char}) = sum_shortest_paths(data, expand_coeff = 1_000_000)
 
 function main()
     data = parse_input("data11.txt")
-    # data = parse_input("data11.test.txt")
-    # println(expand_galaxy(readlines_into_char_matrix("data11.test.txt")) == readlines_into_char_matrix("data11.test.expected.txt"))
 
     # Part 1
     part1_solution = part1(data)
+    @assert part1_solution == 9742154
     println("Part 1: $part1_solution")
-    # @assert part1_solution == 9742154
 
     # Part 2
     part2_solution = part2(data)
+    @assert part2_solution == 411142919886
     println("Part 2: $part2_solution")
-    # @assert part2_solution == 411142919886
 end
 
 main()
