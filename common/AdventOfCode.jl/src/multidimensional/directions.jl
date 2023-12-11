@@ -5,8 +5,8 @@ export INDEX_TOP_LEFT, INDEX_TOP_RIGHT, INDEX_BOTTOM_LEFT, INDEX_BOTTOM_RIGHT
 
 const INDEX_LEFT         = CartesianIndex(0, -1)
 const INDEX_RIGHT        = CartesianIndex(0, 1)
-const INDEX_ABOVE        = CartesianIndex(1, 0)
-const INDEX_BELOW        = CartesianIndex(-1, 0)
+const INDEX_ABOVE        = CartesianIndex(-1, 0)
+const INDEX_BELOW        = CartesianIndex(1, 0)
 const INDEX_TOP_LEFT     = INDEX_ABOVE + INDEX_LEFT
 const INDEX_TOP_RIGHT    = INDEX_ABOVE + INDEX_RIGHT
 const INDEX_BOTTOM_LEFT  = INDEX_BELOW + INDEX_LEFT
