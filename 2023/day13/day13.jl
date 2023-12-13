@@ -7,39 +7,31 @@ function parse_input(input_file::String)
     return Matrix{Char}[Parsing._lines_into_matrix(split(b, "\n")) for b in L]
 end
 
-@enum Axis begin
+@enum MatrixDimension begin
     invalid = 0
     rows = 1
     cols = 2
 end
 
 struct ReflectiveIndex
-    axis::Axis
+    dim::MatrixDimension
     i::Int
 end
 
 const invalid_reflective_index = ReflectiveIndex(invalid, 0)
 
-function is_reflective_rows(M::Matrix{Char}, i::Int)
-    nrows = size(M, 1)
-    max_reflection = max(min(i, nrows - i), 1)
-    a = M[max(i - max_reflection + 1, 1):i, :]
-    b = M[(i + 1):min(i + max_reflection, nrows), :]
-    return a == reverse(b, dims=1)
-end
+# This function is dynamic with the axis of the reflective index.
+# For a version of this function separate for rows/columns, see 1327fea.
+function is_reflective(M::AbstractArray{<:Any,N}, ri::ReflectiveIndex) where {N}
+    i, d = ri.i, Int(ri.dim)
 
-function is_reflective_cols(M::Matrix{Char}, i::Int)
-    ncols = size(M, 2)
-    max_reflection = max(min(i, ncols - i), 1)
-    a = M[:, max(i - max_reflection + 1, 1):i]
-    b = M[:, (i + 1):min(i + max_reflection, ncols)]
-    return a == reverse(b, dims=2)
-end
+    ai = CartesianIndices(ntuple(k -> k == d ? (max(i - max(min(i, size(M, k) - i), 1) + 1, 1):i) : (firstindex(M, k):lastindex(M, k)), Val{N}()))
+    bi = CartesianIndices(ntuple(k -> k == d ? ((i + 1):min(i + max(min(i, size(M, k) - i), 1), size(M, k))) : (firstindex(M, k):lastindex(M, k)), Val{N}()))
 
-function is_reflective(M::Matrix{Char}, ri::ReflectiveIndex)
-    ri.axis == rows && return is_reflective_rows(M, ri.i)
-    ri.axis == cols && return is_reflective_cols(M, ri.i)
-    return false
+    a = view(M, ai)
+    b = view(M, bi)
+
+    return a == reverse(b, dims=d)
 end
 
 function find_reflection(M::Matrix{Char}, not_ri::ReflectiveIndex = invalid_reflective_index)
@@ -61,8 +53,8 @@ function find_reflection(M::Matrix{Char}, not_ri::ReflectiveIndex = invalid_refl
 end
 
 function score_reflection(ri::ReflectiveIndex)
-    ri.axis == rows && return 100ri.i
-    ri.axis == cols && return ri.i
+    ri.dim == rows && return 100ri.i
+    ri.dim == cols && return ri.i
     return 0
 end
 
