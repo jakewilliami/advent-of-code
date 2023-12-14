@@ -1,82 +1,109 @@
+# We are given a matrix of characters.  The characters represent a
+# plane of rocks.  '.' characters are empty space; '#' characters are
+# square rocks that are heavy and can't move; and (most interestingly)
+# 'O' characters are circular rocks that roll around.  The platform that
+# the rocks are on will tilt and the circular rocks will move unless
+# they are stopped by square rocks or the edge of the platform
+#
+# Part 1 required simulating the rocks moving north as far as they can,
+# and then calculating a score based on the end state.  I'm not sure
+# if there is a clever solution for this so I simply simulated it within
+# the matrix (in-place, which is why I have to copy the input data).
+#
+# Part 2 was similar to part 1, where we had to simulate rocks sliding
+# in a certain direction.  I figured the direction would be dynamic so I
+# implemented it dynamically in part 1.  In this part of the problem, we
+# have to simulate the rocks sliding in all cardinal directions n times.
+# The complication arises from the fact that n is 1 billion.  The solution
+# here is to find a repeating pattern so that we can reduce the number of
+# iterations we are required to simulate.
+
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-# using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
 
 function parse_input(input_file::String)
     M = readlines_into_char_matrix(input_file)
     @assert all(c -> c in ("O#."), M)
     return M
-    # S = read(input_file, String)
-    # L = readlines(input_file)
-    # L = get_integers.(L)
-    return L
 end
 
-function dis(M)
-    println(join(join.(eachrow(M)), "\n"))
-end
 
-function g!(M, d)
+### Part 1 ###
+
+const Direction = CartesianIndex{2}
+
+# Simulate circular rocks ('O') sliding in direction d
+# Returns a boolean to indicate whether rocks were moved or not
+function _simulate_rocks_sliding!(M::Matrix{Char}, d::Direction)
     moved = false
+
     for i in CartesianIndices(M)
-        c1 = M[i]
+        c1, c2 = M[i], tryindex(M, i + d)
+
+        # We only move circular rocks
         c1 == 'O' || continue
-        j = i + d
-        hasindex(M, j) || continue
-        c2 = M[j]
+
+        # Can't move in a direction that doesn't exist
+        isnothing(c2) && continue
+
+        # If the space at direction d from the current index is
+        # empty, the rock can move there
         if c2 == '.'
-            M[j] = c1
             M[i] = '.'
+            M[i + d] = c1
             moved = true
         end
     end
+
     return moved
 end
 
-function f!(M, d)
-    while true
-        g!(M, d) || break
-    end
+# Simulate circular rocks sliding in direction d until they're in a state
+# where they can't slide any further in that direction
+function simulate_rocks_sliding!(M::Matrix{Char}, d::Direction)
+    while true _simulate_rocks_sliding!(M, d) || break end
     return M
 end
 
-function score(M)
+# Calculate the score of the current plane of rocks
+function score_plane(M::Matrix{Char})
     res = 0
+
     for (i, row) in enumerate(eachrow(M))
         j = size(M, 1) - i + 1
-        # println(j)
-        # println(row)
-        # println(sum(c == 'O' for c in row))
-        res += sum(c == 'O' for c in row) * j
+        res += j * sum(c == 'O' for c in row)
     end
+
     return res
 end
 
-function part1(data)
-    M = copy(data)
-    f!(M, INDEX_ABOVE)
-    return score(M)
+# Simulate rocks sliding north and calculate the score
+function part1(M::Matrix{Char})
+    simulate_rocks_sliding!(M, INDEX_ABOVE)
+    return score_plane(M)
 end
 
-function f2!(M)
-    for d in [INDEX_ABOVE, INDEX_LEFT, INDEX_BELOW, INDEX_RIGHT]
-        f!(M, d)
+
+### Part 2 ###
+
+# Simulate rocks sliding completely in all cardinal directions once
+function simulate_rocks_sliding_cycle!(M::Matrix{Char})
+    for d in (INDEX_ABOVE, INDEX_LEFT, INDEX_BELOW, INDEX_RIGHT)
+        simulate_rocks_sliding!(M, d)
     end
     return M
 end
 
-function h!(M)
-    # TODO: cardinal_directions
-    seen = [hash(M)]
+# Simulate rocks sliding completely in all cardinal directions N times
+function simulate_rocks_sliding_cycle!(M::Matrix{Char}, n::Int)
+    seen = UInt[hash(M)]
     si = ei = 0
-    for i in 1:1_000_000_000
-        f2!(M)
+
+    # As `n' is possibly very large, the idea is to keep track of the
+    # states we've seen after each cycle of sliding rocks.  The hope is
+    # that we find a cycle in less than n iterations, so then we can
+    # just simulate the remaining iterations up to n
+    for i in 1:n
+        simulate_rocks_sliding_cycle!(M)
         h = hash(M)
 
         if h in seen
@@ -88,79 +115,40 @@ function h!(M)
         end
     end
 
+    # If we have seen n states then we have our answer without finding
+    # any cycles
+    length(seen) >= n && return M
+
+    # If we got here, we found a cycle.  Find its length and calculate
+    # the number of cycles that remain to reach `n'
     cycle_length = ei - si
-    rem_cycles = 1_000_000_000 - si
+    remaining_cycles = n - si
 
-    # 3 10 7 999999997 3
-    # 10 38 28 999999990 10
-    println("$si $ei $cycle_length $rem_cycles $(mod(rem_cycles, cycle_length))")
-
-    for i in 1:mod(rem_cycles, cycle_length)
-        f2!(M)
+    # Simulate the cycle of sliding rocks for the remaining iterations
+    for i in 1:mod(remaining_cycles, cycle_length)
+        simulate_rocks_sliding_cycle!(M)
     end
-
-    # dis(M)
-
-    return score(M)
-end
-
-function oldh!(M)
-    # TODO: cardinal_directions
-    directions = [INDEX_ABOVE, INDEX_LEFT, INDEX_BELOW, INDEX_RIGHT]
-    seen = [hash(M)]
-    si = ei = 0
-    last_d = INDEX_ABOVE
-    for i in 1:1_000_000_000
-        d = directions[mod1(i, 4)]
-        f!(M, d)
-        h = hash(M)
-
-        if h in seen
-            si = findfirst(==(h), seen) - 1
-            ei = i
-            last_d = d
-            break
-        else
-            push!(seen, h)
-        end
-    end
-
-    cycle_length = ei - si
-    rem_cycles = 1_000_000_000 - si
-
-    # 3 10 7 999999997 3
-    # 10 38 28 999999990 10
-    println("$si $ei $cycle_length $rem_cycles $(mod(rem_cycles, cycle_length))")
-
-    di = findfirst(==(last_d), directions)
-    for i in 1:mod(rem_cycles, cycle_length)
-        d = directions[mod1(i + di, 4)]
-        f!(M, d)
-    end
-
-    # dis(M)
 
     return M
 end
 
-function part2(data)
-    M = copy(data)
-    h!(M)
-    return score(M)
+# Simulate rocks sliding completely in all cardinal directions 1 billion times,
+# and then calculate its final score
+function part2(M::Matrix{Char})
+    simulate_rocks_sliding_cycle!(M, 1_000_000_000)
+    return score_plane(M)
 end
 
 function main()
     data = parse_input("data14.txt")
-    # data = parse_input("data14.test.txt")
-    # println(data)
 
     # Part 1
-    part1_solution = part1(data)
+    part1_solution = part1(copy(data))
     @assert part1_solution == 109665
     println("Part 1: $part1_solution")
 
     # Part 2
-    part2_solution = part2(data)
+    part2_solution = part2(copy(data))
     @assert part2_solution == 96061
     println("Part 2: $part2_solution")
 end
