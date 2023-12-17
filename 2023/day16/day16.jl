@@ -1,100 +1,105 @@
-# Part 1 so many bugs :(
-# Part 2 no good stop condition, 10 vs 100
+# We are given another matrix of characters, this time representing a
+# plane of space with mirrors and splitters.
+#
+# Part 1: a beam of light comes in from the top left of the grid, moving
+# right.  We have to simulate it moving around, being bounced around by
+# mirrors and split into multiple beams by splitters.  Each index it goes
+# across will be energised.  What is the number of indices that are energised
+# at the end of the simulation?
+#
+# Part 2: the beam of light can come from any direction on the edge of the
+# grid.  Find the initial direction and position of the beam such that the
+# number of indices energised at the end of the simulation is maximised.
+#
+# I took a long time to complete part 1, as I, for some reason, just had so
+# many bugs.  Skill issue, I guess.  I took around 1.5 hours.  For I think
+# one of the first times this year I actually had to get out the old pen and
+# paper, and make sure I had everything splitting and bouncing around correctly
+# (I hadn't).  Anyway, I finally got that working, but I had guests over so I
+# couldn't work on part 2 for a little while.  Once I got to part 2, it was
+# quite slow to run because I didn't implement memoisation/dynamic progragramming.
+# As a result, I didn't have a good stop condition and I had a small bug in
+# part 2 which was a problem.  Pretty happy with the final queue system I have
+# written with memoisation implemented.
 
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-# using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
+using DataStructures
 
-function dis(M)
-    println(join((join(r) for r in eachrow(M)), '\n'))
+parse_input(input_file::String) = readlines_into_char_matrix(input_file)
+
+
+### Part 1 ###
+
+mutable struct Beam
+    pos::CartesianIndex{2}
+    dir::CartesianIndex{2}
+
+    function Beam(pos::CartesianIndex{2}, dir::CartesianIndex{2})
+        is_direction(dir) || error("A direction must have no magnitude")
+        return new(pos, dir)
+    end
 end
 
-function parse_input(input_file::String)
-    M = readlines_into_char_matrix(input_file)
-    return M
-    # S = read(input_file, String)
-    # L = readlines(input_file)
-    # L = get_integers.(L)
-    # return L
+Base.hash(beam::Beam) = hash((beam.pos, beam.dir))
+
+# Move the beam to the next position in the current direction
+function move!(beam::Beam)
+    beam.pos += beam.dir
+    return beam
 end
 
-ismirror(c) = c in ('/', '\\')
-issplitter(c) = c in ('|', '-')
-isemptyspace(c) = c == '.'
+# Move the beam to the next position in a new direction
+function move!(beam::Beam, dir::CartesianIndex{2})
+    is_direction(dir) || error("A direction must have no magnitude")
+    beam.dir = dir
+    return move!(beam)
+end
 
-function mirror_dir(c, d)
+function mirror_dir(M::Matrix{Char}, beam::Beam)
+    c = M[beam.pos]
+    i = origin(2)
+    rd = CartesianIndex(reverse(beam.dir.I))
+
     if c == '/'
-        # right
-        if d == INDEX_RIGHT
-            return INDEX_ABOVE
-        # down
-        elseif d == INDEX_BELOW
-            return INDEX_LEFT
-        # left
-        elseif d == INDEX_LEFT
-            return INDEX_BELOW
-        # up
-        elseif d == INDEX_ABOVE
-            return INDEX_RIGHT
-        end
+        return i - rd
     elseif c == '\\'
-        # right
-        if d == INDEX_RIGHT
-            return INDEX_BELOW
-        # down
-        elseif d == INDEX_BELOW
-            return INDEX_RIGHT
-        # left
-        elseif d == INDEX_LEFT
-            return INDEX_ABOVE
-        # up
-        elseif d == INDEX_ABOVE
-            return INDEX_LEFT
-        end
+        return i + rd
     else
         error("unhandled mirror $c")
     end
 end
 
-function f!(M, beams)
-    energised = Set((first(only(beams)),))
-    n_unchanged = 0
-    while true
-        # TODO: queue rather than mutate beams
-        start_length_energised = length(energised)
-        start_beams = copy(beams)
-        modifiers = []
-        for (beam_i, (i, d)) in enumerate(beams)
-            c = tryindex(M, i)
-            if c === nothing
-                # deleteat!(beams, beam_i)
-                push!(modifiers, (:deleteat!, (beam_i,)))
-                continue
-            end
-            push!(energised, i)
-            if isemptyspace(c)
-                beams[beam_i] = (i + d, d)
-            elseif ismirror(c)
-                d = mirror_dir(c, d)
-                beams[beam_i] = (i + d, d)
-            elseif issplitter(c)
-                # d_op = opposite_direction(d)
-                # if (c == '|' && (d in (INDEX_ABOVE, INDEX_BELOW) || d_op in (INDEX_ABOVE, INDEX_BELOW))) || (c == '-' && (d in (INDEX_LEFT, INDEX_RIGHT) || d_op in (INDEX_LEFT, INDEX_RIGHT)))
-                if (c == '|' && d in (INDEX_ABOVE, INDEX_BELOW)) || (c == '-' && d in (INDEX_LEFT, INDEX_RIGHT))
-                    beams[beam_i] = (i + d, d)
+function simulate_beam_energising(M::Matrix{Char}, start_beam::Beam)
+    Q, energised, seen = Queue{Beam}(), Set{CartesianIndex{2}}(), Set{UInt}()
+    enqueue!(Q, start_beam)
+
+    while !isempty(Q)
+        beam = dequeue!(Q)
+
+        while hasindex(M, beam.pos)
+            h = hash(beam)
+            h ∈ seen && break
+            push!(seen, h)
+            # println(beam)
+
+            push!(energised, beam.pos)
+            c = M[beam.pos]
+
+            if c == '.'
+                move!(beam)
+            elseif c ∈ "/\\"
+                move!(beam, mirror_dir(M, beam))
+            elseif c ∈ "|-"
+                if (c == '|' && beam.dir in (INDEX_ABOVE, INDEX_BELOW)) ||
+                    (c == '-' && beam.dir in (INDEX_LEFT, INDEX_RIGHT))
+                    move!(beam)
                 else
                     if c == '|'
-                        beams[beam_i] = (i + INDEX_ABOVE, INDEX_ABOVE)
-                        push!(modifiers, (:push!, (i + INDEX_BELOW, INDEX_BELOW)))
+                        enqueue!(Q, Beam(beam.pos + INDEX_BELOW, INDEX_BELOW))
+                        move!(beam, INDEX_ABOVE)
                     elseif c == '-'
-                        beams[beam_i] = (i + INDEX_LEFT, INDEX_LEFT)
-                        push!(modifiers, (:push!, (i + INDEX_RIGHT, INDEX_RIGHT)))
+                        enqueue!(Q, Beam(beam.pos + INDEX_RIGHT, INDEX_RIGHT))
+                        move!(beam, INDEX_LEFT)
                     else
                         error("unhandled splitter $c")
                     end
@@ -103,86 +108,52 @@ function f!(M, beams)
                 error("unhandled char $c")
             end
         end
-        indices_to_delete = (only(a) for (m, a) in modifiers if m == :deleteat!)
-        deleteat!(beams, indices_to_delete)
-        for (m, a) in modifiers
-            if m == :push!
-                push!(beams, a)
-            end
-        end
-        # println(energised, "    ", beams)
-        # println('='^20)
-        # println(energised)
-        # println(length(energised))
-        # println(beams)
-        # println('='^20)
-
-        if length(energised) == start_length_energised
-            n_unchanged += 1
-        end
-        if n_unchanged > 100
-            break
-        end
-        # println(beams)
-        # length(energised) == start_length_energised && break
-        # length(energised) == 46 && break
-        # isempty(beams) && break
-        # beams == start_beams && break
-        # beams == start_beams && length(energised) == start_length_energised && break
     end
-
-    #=
-    M2 = fill('.', size(M))
-    for i in energised
-        M2[i] = '#'
-    end
-    dis(M2)
-    =#
 
     return energised
 end
 
-function part1(data)
-    beams = [(CartesianIndex{2}(), INDEX_RIGHT)]
-    energised = f!(data, beams)
+function part1(data::Matrix{Char})
+    energised = simulate_beam_energising(data, Beam(CartesianIndex{2}(), INDEX_RIGHT))
     return length(energised)
 end
 
-function part2(data)
-    start_indices = []
-    for ri in axes(data, 1)
-        push!(start_indices, (CartesianIndex(ri, 1), INDEX_RIGHT))
-        push!(start_indices, (CartesianIndex(ri, size(data, 1)), INDEX_LEFT))
-    end
-    for ci in axes(data, 2)
-        push!(start_indices, (CartesianIndex(1, ci), INDEX_BELOW))
-        push!(start_indices, (CartesianIndex(size(data, 2), ci), INDEX_ABOVE))
-    end
 
+### Part 2 ###
 
-    energised = []
-    for si in start_indices
-        println(si)
-        beams = [si]
-        push!(energised, length(f!(data, beams)))
+function collect_edge_indices(M::Matrix{Char})
+    nrows, ncols = size(M)
+    edges = Beam[]
+
+    for ri in axes(M, 1)
+        push!(edges, Beam(CartesianIndex(ri, 1), INDEX_RIGHT))
+        push!(edges, Beam(CartesianIndex(ri, nrows), INDEX_LEFT))
     end
 
-    return maximum(energised)
+    for ci in axes(M, 2)
+        push!(edges, Beam(CartesianIndex(1, ci), INDEX_BELOW))
+        push!(edges, Beam(CartesianIndex(ncols, ci), INDEX_ABOVE))
+    end
+
+    return edges
+end
+
+function part2(data::Matrix{Char})
+    edges = collect_edge_indices(data)
+    return maximum(length(simulate_beam_energising(data, beam)) for beam in edges)
 end
 
 function main()
     data = parse_input("data16.txt")
-    # data = parse_input("data16.test.txt")
-    # dis(data)
 
     # Part 1
     part1_solution = part1(data)
-    # @assert part1_solution == 6795
+    @assert part1_solution == 6795
     println("Part 1: $part1_solution")
 
     # Part 2
     part2_solution = part2(data)
-    # @assert part2_solution ==
+    @assert part2_solution == 7154
     println("Part 2: $part2_solution")
     # not 7143 too low
 end
