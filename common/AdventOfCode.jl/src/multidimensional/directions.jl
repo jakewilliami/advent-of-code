@@ -1,17 +1,22 @@
 export direction, is_direction
+export is_diagonal, is_vertical, is_horizontal
 export opposite_direction
+export rotl90, rotr90, rot180
 export cardinal_directions, orthogonal_directions, cartesian_directions
 export INDEX_LEFT, INDEX_RIGHT, INDEX_ABOVE, INDEX_BELOW
+export INDEX_WEST, INDEX_EAST, INDEX_NORTH, INDEX_SOUTH
+export INDEX_UP, INDEX_DOWN
 export INDEX_TOP_LEFT, INDEX_TOP_RIGHT, INDEX_BOTTOM_LEFT, INDEX_BOTTOM_RIGHT
+export INDEX_NORTH_WEST, INDEX_NORTH_EAST, INDEX_SOUTH_WEST, INDEX_SOUTH_EAST
 
-const INDEX_LEFT         = CartesianIndex(0, -1)
-const INDEX_RIGHT        = CartesianIndex(0, 1)
-const INDEX_ABOVE        = CartesianIndex(-1, 0)
-const INDEX_BELOW        = CartesianIndex(1, 0)
-const INDEX_TOP_LEFT     = INDEX_ABOVE + INDEX_LEFT
-const INDEX_TOP_RIGHT    = INDEX_ABOVE + INDEX_RIGHT
-const INDEX_BOTTOM_LEFT  = INDEX_BELOW + INDEX_LEFT
-const INDEX_BOTTOM_RIGHT = INDEX_BELOW + INDEX_RIGHT
+const INDEX_LEFT = INDEX_WEST                = CartesianIndex(0, -1)
+const INDEX_RIGHT = INDEX_EAST               = CartesianIndex(0, 1)
+const INDEX_ABOVE = INDEX_NORTH = INDEX_UP   = CartesianIndex(-1, 0)
+const INDEX_BELOW = INDEX_SOUTH = INDEX_DOWN = CartesianIndex(1, 0)
+const INDEX_TOP_LEFT = INDEX_NORTH_WEST      = INDEX_ABOVE + INDEX_LEFT
+const INDEX_TOP_RIGHT = INDEX_NORTH_EAST     = INDEX_ABOVE + INDEX_RIGHT
+const INDEX_BOTTOM_LEFT = INDEX_SOUTH_WEST   = INDEX_BELOW + INDEX_LEFT
+const INDEX_BOTTOM_RIGHT = INDEX_SOUTH_EAST  = INDEX_BELOW + INDEX_RIGHT
 
 
 """
@@ -40,26 +45,118 @@ See also: [`direction`](@ref).
 is_direction(i::CartesianIndex{N}) where {N} = i == direction(i)  # all(∈(-1:1), i.I)
 
 
+# Cardinal directions only differ from the origin in one dimension
+_is_cardinal(d::CartesianIndex{N}) where {N} = isone(sum(map(abs, Tuple(d))))
+
+
 """
 ```julia
-opposite_direction(d::CartesianIndex{N}) -> CartesianIndex{N}
+is_diagonal(d::CartesianIndex{2}) -> bool
 ```
 
-Given some direction offset as a Cartesian index, find the opposite one.
+Check if a 2D direction goes diagonally or not.
 
-See also: [`direction`](@ref) and [`is_direction`](@ref).
+See also: [`is_vertical`](@ref) and [`is_horizontal`](@ref).
 """
-function opposite_direction(d::CartesianIndex{N}) where {N}
-    @assert is_direction(d)
-    # Reverse direction
-    r = _mk_cartesian_index(-one(eltype(d)), N)
-    return CartesianIndex(d.I .* r.I)
+function is_diagonal(d::CartesianIndex{2})
+    is_direction(d) || error("$d is not a direction vector")
+    return !_is_cardinal(d)
 end
 
 
+# Similar to _is_cardinal, but checks for arbitrary dimensions
+function _direction_in_dims(d::CartesianIndex{N}; dims=:) where {N}
+    dirs = ntuple(k -> dims == Colon() ? true : k ∈ dims, Val{N}())
+    abs_d = map(abs, Tuple(d))
+    return all((check ? isone : iszero)(m) for (m, check) in zip(abs_d, dirs))
+end
+
+
+"""
+```julia
+is_vertical(d::CartesianIndex{2}) -> bool
+```
+
+Check if a 2D direction goes up or down (vertically).
+
+See also: [`is_diagonal`](@ref) and [`is_horizontal`](@ref).
+"""
+function is_vertical(d::CartesianIndex{2})
+    is_direction(d) || error("$d is not a direction vector")
+    _is_cardinal(d) || return false
+    return _direction_in_dims(d, dims=1)
+end
+
+
+"""
+```julia
+is_horizontal(d::CartesianIndex{2}) -> bool
+```
+
+Check if a 2D direction goes left or right (horizontally).
+
+See also: [`is_diagonal`](@ref) and [`is_vertical`](@ref).
+"""
+function is_horizontal(d::CartesianIndex{2})
+    is_direction(d) || error("$d is not a direction vector")
+    _is_cardinal(d) || return false
+    return _direction_in_dims(d, dims=2)
+end
+
+
+"""
+```julia
+opposite_direction(d::CartesianIndex{N}) -> CartesianIndex{N}
+rot180(d::CartesianIndex{2}) -> CartesianIndex{2}
+```
+
+Given some direction offset as a Cartesian index, find the opposite one.  This is equivalent to rotating 180 degrees in 2D space.
+
+See also: [`direction`](@ref), [`is_direction`](@ref), [`rotl90`](@ref), and [`rotr90`](@ref).
+"""
+function opposite_direction(d::CartesianIndex{N}) where {N}
+    is_direction(d) || error("$d is not a direction vector")
+    # Reverse direction
+    r = _mk_cartesian_index(-one(eltype(d)), N)
+    return CartesianIndex(Tuple(d) .* Tuple(r))
+end
+Base.rot180(d::CartesianIndex{2}) = opposite_direction(d)
+
+
+"""
+```julia
+rotl90(d::CartesianIndex{2}) -> CartesianIndex{N}
+```
+
+Rotate the 2D direction left 90°.
+
+See also: [`rot180`](@ref), and [`rotr90`](@ref).
+"""
+function Base.rotl90(d::CartesianIndex{2})
+    is_direction(d) || error("$d is not a direction vector")
+    return CartesianIndex(reverse(Tuple(d)) .* (-1, 1))
+end
+
+
+"""
+```julia
+rotr90(d::CartesianIndex{2}) -> CartesianIndex{N}
+```
+
+Rotate the 2D direction right 90°.
+
+See also: [`rot180`](@ref), and [`rotl90`](@ref).
+"""
+function Base.rotr90(d::CartesianIndex{2})
+    is_direction(d) || error("$d is not a direction vector")
+    return CartesianIndex(reverse(Tuple(d)) .* (1, -1))
+end
+
+
+# Get all cartesian directions as an iterator
 function _cartesian_directions(dim::I; include_origin::Bool = false) where {I <: Integer}
     origin = Tuple(𝟘(dim))
-    one_ = one(Int)
+    one_ = one(I)
     dir_itr = Base.Iterators.product((-one_:one_ for i in one_:dim)...)
     fltr(t::NTuple{N,Int}) where {N} = include_origin ? true : t ≠ origin
     return (CartesianIndex(t) for t in dir_itr if fltr(t))
@@ -87,9 +184,7 @@ function cardinal_directions(dim::I; include_origin::Bool = false) where {I <: I
 
     # The cardinal directions is a coordinate with exactly one offset (all other
     # dimensions are zero)
-    fltr(i::CartesianIndex{N}) where {N} = isone(sum(map(abs, Tuple(i))))
-
-    return CartesianIndex{dim}[i for i in dir_itr if fltr(i)]
+    return CartesianIndex{dim}[i for i in dir_itr if _is_cardinal(i)]
 end
 const orthogonal_directions = cardinal_directions
 
