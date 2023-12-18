@@ -1,229 +1,165 @@
-# found it very hard to debug priority queue when i've not actually used the data structure before so i had no idea if
+# Today's problem requires us to parse a matrix of integers.  It is a path-finding problem.
+#
+# In the first part, we have to make our way from the top left to the bottom right of the
+# matrix, with the lowest cost (each node entered increments the cost).  However, for some
+# added complexity, we can only go in the same direction 3 times before having to turn.  And
+# we can't turn backwards; only forward, left, or right.
+#
+# Part 2 was a very similar problem but ramped up requirements: we MUST travel in the same
+# direction AT LEAST 4 times, and AT MOST 10 times.
+#
+# It was an interesting problem today.  I started implementing the solution using BFS, which
+# I have grown to understand somewhat since last year's Aoc.  However, I believe BFS only
+# works when each edge in the graph has equal weighting (which this does not).  As such, after
+# a little bit of research, I realised we need to use a "priority queue" (equivalently, `heapq'
+# in Python, but *not* equivalent to DataStructures.jl's `BinaryMinHeap').  It was interesting
+# to use such a data structure, as I had never used it before, however it was difficult to
+# debug the problem.
+#
+# The path-finding code between part 1 and 2 are identical, but the function allows a predicate
+# to determine whether the next location in the path should be skipped or not (based on the
+# problems requirements).
+
 
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
 using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
 
-function parse_input(input_file::String)
-    # M = readlines_into_char_matrix(input_file)
-    M = readlines_into_int_matrix(input_file)
-    return M
-    # S = strip(read(input_file, String))
-    L = strip.(readlines(input_file))
-    # L = get_integers.(L)
-    return L
+parse_input(input_file::String) = readlines_into_int_matrix(input_file)
+
+
+### Part 1 ###
+
+const Direction = CartesianIndex{2}
+
+# Only left/right/forward turns are allowed
+allowed_turns(d::Direction) = (rotl90(d), rotr90(d), d)
+
+# A state to keep track of when path-finding
+struct PathState
+    pos::CartesianIndex{2}
+    dir::CartesianIndex{2}
+    moves_since_last_turn::Int
 end
 
-function part1(data)
-    si, ei = CartesianIndex{2}(), last(CartesianIndices(data))
+const INVALID_PATH_STATE = PathState(origin(2), origin(2), 0)
+const DEFAULT_PATH_STATE = PathState(CartesianIndex{2}(), CartesianIndex{2}(), 1)
+
+# Increment moves since last turn.  If the new direction is distinct from the previous,
+# this will reset to 1
+function _inc_moves_since_last_turn(path_state::PathState, new_dir::Direction)
+    moves_since_last_turn = 1
+    if path_state.dir == new_dir
+        moves_since_last_turn = path_state.moves_since_last_turn + 1
+    end
+    return moves_since_last_turn
 end
 
-function allowed_turns(d)
-    return (rotl90(d), rotr90(d), d)
-    i = origin(2)
-    rd = CartesianIndex(reverse(d.I))
-    return (i - rd, i + rd, d)
-end
+# Main logic for path finding.  Allows a function to be given
+function _find_path(data::Matrix{Int}, end_i::CartesianIndex{2}; skip_fn = function(_...) false, DEFAULT_PATH_STATE end)
+    # Must use a priority queue to find the minimum cumulative heat-loss
+    Q = PriorityQueue{PathState, Int}()
+    S = Set{PathState}()
 
-# enqueue!(h::BinaryMinHeap, x) = push!(h, x)
-# enqueue!(h::BinaryMinHeap, x, _y) = push!(h, x)
-# dequeue!(h::BinaryMinHeap) = popmin!(h)
-
-function _bfs_core(data, end_i)
-    Q = PriorityQueue{Any, Int}()
-    # Q = BinaryMinHeap{Any}()
-    # start_i = CartesianIndex{2}()
-    # for d in (INDEX_RIGHT, INDEX_BELOW)
-        # enqueue!(Q, (start_i, data[start_i], d, 1, [(start_i, d)]), 0)
-    # end
-
-    # index, cumulative heat loss, direction, number of straight moves, path
-    # for (i, d) in ((CartesianIndex(1, 2), INDEX_RIGHT), (CartesianIndex(2, 1), INDEX_BELOW))
+    # Initialise the search queue with the two starting directions from the start position
     for d in (INDEX_RIGHT, INDEX_BELOW)
         i = CartesianIndex{2}() + d
-        enqueue!(Q, (i, d, 1, [(i, d)]), data[i])
+        enqueue!(Q, PathState(i, d, 1), data[i])
     end
-    # println(Any[(t[1], t[3]) for (t, _) in Q])
-    #=for d in (INDEX_RIGHT, INDEX_BELOW)
-        si = CartesianIndex{2}()
-        j = si + d
-        enqueue!(Q, (j, data[j], d, 1, [(j, d)]), data[j])
-    end=#
-    # si = CartesianIndex{2}()
-    # d = INDEX_RIGHT
-    # j = si + d
-    # enqueue!(Q, (j, data[j], d, 1, [(j, d)]), data[j])
-    # enqueue!(Q, (si, 0, INDEX_RIGHT, 0, []), 0)
-    # enqueue!(Q, (si, 0, INDEX_DOWN, 0, []), 0)
-    S = Set()
-    D = Dict()
 
+
+    # Keep finding paths while we have avenues to explore
     while !isempty(Q)
-        # println(Q)
-        # println(Any[(t[1], t[3]) for (t, _) in Q])
-        (i, d0, dn, path), v = dequeue_pair!(Q)
-        # i ∈ S && continue
-        # push!(S, i)
-        (i, d0, dn) in keys(D) && continue
-        D[(i, d0, dn)] = v
-        if i == end_i
-            return path, v, D
-        end
-        for d in cardinal_directions(2)
-            # 3 in one way max
-            dn1 = d0 == d ? dn + 1 : 1
-            dn1 <= 3 || continue
-            # only left/right/straight turns
-            d in (allowed_turns(d0)) || continue
-            j = i + d
-            hasindex(data, j) || continue
-            # enqueue!(Q, (j, v + data[j], d, dn1), v + data[j])
-            # only increment energy when you enter a new index
-            nv = v + data[j]
-            new_path = push!(copy(path), (j, d))
-            enqueue!(Q, (j, d, dn1, new_path), nv)
+        path_state, v = dequeue_pair!(Q)
+
+        # Memoise the path state
+        path_state ∈ S && continue
+        push!(S, path_state)
+
+        # Stop if we have reached the end of the path
+        path_state.pos == end_i && return v
+
+        # Explore other possible directions
+        for new_dir in allowed_turns(path_state.dir)
+            # Conditionally skip this direction/new index
+            skip_this_state, new_path_state = skip_fn(path_state, new_dir, Q)
+            skip_this_state && continue
+
+            # If we got here, queue this new direction/index
+            enqueue!(Q, new_path_state, v + data[new_path_state.pos])
         end
     end
 end
 
-function d_char(d)
-    d == INDEX_RIGHT && return '>'
-    d == INDEX_BELOW && return 'v'
-    d == INDEX_ABOVE && return '^'
-    d == INDEX_LEFT && return '<'
-    error("invalid direction $d")
-end
+function part1(data::Matrix{Int})
+    function _skip(path_state::PathState, dir::Direction, Q::PriorityQueue{PathState, Int})
+        invalid = true, INVALID_PATH_STATE
+        moves_since_last_turn = _inc_moves_since_last_turn(path_state, dir)
 
-function dis(M, path)
-    M2 = Matrix{Any}(undef, size(M))
-    for i in CartesianIndices(M2)
-        found = false
-        for (j, d) in path
-            if i == j
-                M2[j] = d_char(d)
-                found = true
-                break
-            end
-        end
-        if !found
-            M2[i] = M[i]
-        end
+        # We can only move 3 times in the same direction
+        moves_since_last_turn <= 3 || return invalid
+
+        # Do not go there if the index doesn't exist
+        j = path_state.pos + dir
+        hasindex(data, j) || return invalid
+
+        # If the new path state is already in the queue, we need not go there
+        new_path_state = PathState(j, dir, moves_since_last_turn)
+        new_path_state ∈ keys(Q) && return invalid
+
+        # If we get here, the new path state is valid
+        return false, new_path_state
     end
-    println()
-    println(join((join(r) for r in eachrow(M2)), '\n'))
-    println()
+
+    return _find_path(data, last(CartesianIndices(data)), skip_fn = _skip)
 end
 
 
-function part1(data)
-    path, v, D = _bfs_core(data, last(CartesianIndices(data)))
+### Part 2 ###
 
-    for i in path
-        # println(i)
+function part2(data::Matrix{Int})
+    end_i = last(CartesianIndices(data))
+
+    function _skip(path_state::PathState, dir::Direction, Q::PriorityQueue{PathState, Int})
+        invalid = true, INVALID_PATH_STATE
+        moves_since_last_turn = _inc_moves_since_last_turn(path_state, dir)
+
+        # We can only move 10 times in the same direction
+        # TODO
+        (moves_since_last_turn <= 10 &&
+            (path_state.dir == dir ||
+            path_state.moves_since_last_turn >= 4)) ||
+        return invalid
+
+        # Do not go there if the index doesn't exist
+        j = path_state.pos + dir
+        hasindex(data, j) || return invalid
+
+        # "even before it can stop at the end"
+        (j == end_i && moves_since_last_turn < 4) && return invalid
+
+        # If the new path state is already in the queue, we need not go there
+        new_path_state = PathState(j, dir, moves_since_last_turn)
+        new_path_state ∈ keys(Q) && return invalid
+
+        # If we get here, the new path state is valid
+        return false, new_path_state
     end
 
-    # dis(data, path)
-
-    return v
-end
-
-function _bfs_core2(data, end_i)
-    Q = PriorityQueue{Any, Int}()
-
-    # index, cumulative heat loss, direction, number of straight moves, path
-    # for (i, d) in ((CartesianIndex(1, 2), INDEX_RIGHT), (CartesianIndex(2, 1), INDEX_BELOW))
-    for d in (INDEX_RIGHT, INDEX_BELOW)
-        i = CartesianIndex{2}() + d
-        enqueue!(Q, (i, d, 1, [(i, d)]), data[i])
-    end
-    D = Dict()
-
-    while !isempty(Q)
-        # println(Q)
-        # println(Any[(t[1], t[3]) for (t, _) in Q])
-        (i, d0, dn, path), v = dequeue_pair!(Q)
-        (i, d0, dn) in keys(D) && continue
-        D[(i, d0, dn)] = v
-        if i == end_i
-            return path, v, D
-        end
-        for d in cardinal_directions(2)
-            # 3 in one way max
-            dn1 = d0 == d ? dn + 1 : 1
-            # (dn1 <= 4 || d != d0) && continue
-
-            # TODO: "even before it can stop at the end"
-            (dn1 <= 10 && (d == d0 || dn >= 4)) || continue
-
-
-            # dn1 <= 10 || continue
-            # (dn == d0 && dn1 >= 4) || continue
-
-            # max distance in same direction
-            # dn1 <= 10 || continue
-
-            # min distance in one direction
-            # 4 < dn1 && d != d0 && continue
-            # 4 <
-
-            # dn1 <= 3 || continue
-
-            # (dn1 <= 10 && (d == d0 || dn1 > 4)) || continue
-            #=if dn1 <= 4 && d != d0
-                continue
-            end
-            dn1 <= 10 || continue
-            if 4 < dn1 <= 10
-            end=#
-            d in (allowed_turns(d0)) || continue
-            # only left/right/straight turns
-            j = i + d
-            hasindex(data, j) || continue
-
-            # "even before it can stop at the end"
-            (j == end_i && dn1 < 4) && continue
-
-            # enqueue!(Q, (j, v + data[j], d, dn1), v + data[j])
-            # only increment energy when you enter a new index
-            nv = v + data[j]
-            new_path = push!(copy(path), (j, d))
-            enqueue!(Q, (j, d, dn1, new_path), nv)
-        end
-    end
-end
-
-function part2(data)
-    path, v, D = _bfs_core2(data, last(CartesianIndices(data)))
-
-    # dis(data, path)
-
-    return v
+    return _find_path(data, end_i, skip_fn = _skip)
 end
 
 function main()
     data = parse_input("data17.txt")
-    # data = parse_input("data17.test.txt")
-    # data = parse_input("data17.test2.txt")
-    # println(data)
 
     # Part 1
     part1_solution = part1(data)
-    # @assert part1_solution == 771
+    @assert part1_solution == 771
     println("Part 1: $part1_solution")
 
     # Part 2
     part2_solution = part2(data)
-    # @assert part2_solution == 930
+    @assert part2_solution == 930
     println("Part 2: $part2_solution")
-    # not 927 too low
-    # not 930 too low
-    # not 931 too high
 end
 
 main()
