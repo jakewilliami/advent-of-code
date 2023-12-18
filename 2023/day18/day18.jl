@@ -24,11 +24,13 @@
 # realistic simulation route, however it was not hard to extend the polygon
 # algorithms to find a working solution.  (The premise of this part was that
 # the colour that we "painted the walls with" is actually a distance, so
-# the area is much larger.)  This does, however, take a little while to
-# compute, as the area is so much larger than in part 1.
+# the area is much larger.)  This part of the problem has been optimised with
+# inspiration from Jake Gordon's answer:
+#   https://git.sr.ht/~jgordon/aoc/tree/main/item/2023/D18/D18.jl
 
 using AdventOfCode.Multidimensional
 using Base.Iterators, IterTools
+using LinearAlgebra
 
 struct Instruction
     direction::Direction
@@ -91,19 +93,24 @@ function trench_area(data::Vector{Instruction})
     perimeter = length(indices)
 
     # Compute the area of the polygon using the Shoelace formula:
-    # https://www.wikiwand.com/en/Shoelace_formula#Triangle_formula
-    # NOTE: this is very slow
-    area = 0
-    for (a, b) in IterTools.partition(indices, 2, 1)
-        (y1, x1), (y2, x2) = a.I, b.I
-        area += x1 * y2 - x2 * y1
+    #   https://www.wikiwand.com/en/Shoelace_formula#Triangle_formula
+    #
+    # Optimisation by vectorised formula inspired by this solution:
+    #   https://www.reddit.com/r/adventofcode/comments/18l0qtr/comment/kdv4m8p/
+    # See also my previous (slow) solution:
+    #   https://github.com/jakewilliami/advent-of-code/blob/8ccdc37/2023/day18/day18.jl
+    enclosed, perimeter, r = 0.0, 0, rand()
+    α, β = -r, 1 - r
+    x = zeros(Int, 2)
+    x = (0, 0)
+    for inst in data
+        d, n = Tuple(inst.direction), inst.magnitude
+        perimeter += n
+        enclosed += n .* dot((α, β) .* reverse(x), d)
+        x = x .+ n .* d
     end
-    area ÷= 2
 
-    # Pick's theorem to compute the inner points of a grid-based polygon
-    # https://en.wikipedia.org/wiki/Pick%27s_theorem
-    interior_area = area - perimeter ÷ 2 + 1
-    return interior_area + perimeter
+    return round(Int, abs(enclosed)) + perimeter ÷ 2 + 1
 end
 
 part1(data::Vector{Instruction}) = trench_area(data)

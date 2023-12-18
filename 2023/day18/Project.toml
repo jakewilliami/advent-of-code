@@ -1,3 +1,4 @@
 [deps]
 AdventOfCode = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
 IterTools = "c8e1da08-722c-5040-9ed9-7db0dc04731e"
+LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
