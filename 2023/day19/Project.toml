@@ -1,0 +1,7 @@
+[deps]
+AdventOfCode = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
+CDDLib = "3391f64e-dcde-5f30-b752-e11513730f60"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+LazySets = "b4f0291d-fe17-52bc-9479-3d1a343d9043"
+ModelingToolkit = "961ee093-0014-501f-94e3-6117800e7a78"
+Polyhedra = "67491407-f73d-577b-9b50-8179a7c68029"
