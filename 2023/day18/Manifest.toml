@@ -1,21 +1,24 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.4"
+julia_version = "1.11.1"
 manifest_format = "2.0"
 project_hash = "3c613300188804bd3eb151bd2003a8d1878d4745"
 
 [[deps.AdventOfCode]]
-path = "../../common/AdventOfCode.jl"
+git-tree-sha1 = "8c2f2475a6792a2436978bcf9c62d3b782d93b73"
+repo-rev = "v0.6.1"
+repo-url = "https://github.com/jakewilliami/AdventOfCode.jl"
 uuid = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
-version = "0.3.3"
+version = "0.6.1"
 
 [[deps.Artifacts]]
 uuid = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
+version = "1.11.0"
 
 [[deps.CompilerSupportLibraries_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "e66e0078-7015-5450-92f7-15fbd957f2ae"
-version = "1.0.5+0"
+version = "1.1.1+0"
 
 [[deps.IterTools]]
 git-tree-sha1 = "274c38bd733f9d29036d0a73658fff1dc1d3a065"
@@ -24,17 +27,19 @@ version = "1.9.0"
 
 [[deps.Libdl]]
 uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+version = "1.11.0"
 
 [[deps.LinearAlgebra]]
 deps = ["Libdl", "OpenBLAS_jll", "libblastrampoline_jll"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+version = "1.11.0"
 
 [[deps.OpenBLAS_jll]]
 deps = ["Artifacts", "CompilerSupportLibraries_jll", "Libdl"]
 uuid = "4536629a-c528-5b80-bd46-f80d51c5b363"
-version = "0.3.21+4"
+version = "0.3.27+1"
 
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl"]
 uuid = "8e850b90-86db-534c-a0d3-1478176c7d93"
-version = "5.8.0+0"
+version = "5.11.0+0"

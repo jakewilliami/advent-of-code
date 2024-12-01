@@ -5,6 +5,8 @@ manifest_format = "2.0"
 project_hash = "079c1aad4f4aa1198bbaafc3a245848f03d15774"
 
 [[deps.AdventOfCode]]
-path = "../../common/AdventOfCode.jl"
+git-tree-sha1 = "7ada251b28279360fa23273ae7049849d859995e"
+repo-rev = "v0.6.2"
+repo-url = "https://github.com/jakewilliami/AdventOfCode.jl"
 uuid = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
-version = "0.3.3"
+version = "0.6.2"

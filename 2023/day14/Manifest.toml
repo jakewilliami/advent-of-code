@@ -1,10 +1,12 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.4"
+julia_version = "1.11.1"
 manifest_format = "2.0"
 project_hash = "079c1aad4f4aa1198bbaafc3a245848f03d15774"
 
 [[deps.AdventOfCode]]
-path = "../../common/AdventOfCode.jl"
+git-tree-sha1 = "347f5c4af3a88172c07f1bd2aad3a85ba03385c7"
+repo-rev = "v0.6.0"
+repo-url = "https://github.com/jakewilliami/AdventOfCode.jl"
 uuid = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
-version = "0.3.3"
+version = "0.6.0"

@@ -1,16 +1,19 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.9.4"
+julia_version = "1.11.1"
 manifest_format = "2.0"
 project_hash = "bfb3dcc77b007833c8d4efb21c1a7e36ff86840f"
 
 [[deps.AdventOfCode]]
-path = "../../common/AdventOfCode.jl"
+git-tree-sha1 = "0a30e43dc9405c56d29d9189929726fa4768645e"
+repo-rev = "v0.5.0"
+repo-url = "https://github.com/jakewilliami/AdventOfCode.jl"
 uuid = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
-version = "0.3.3"
+version = "0.5.0"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+version = "1.11.0"
 
 [[deps.Compat]]
 deps = ["UUIDs"]
@@ -34,10 +37,12 @@ version = "0.18.15"
 [[deps.InteractiveUtils]]
 deps = ["Markdown"]
 uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
+version = "1.11.0"
 
 [[deps.Markdown]]
 deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
+version = "1.11.0"
 
 [[deps.OrderedCollections]]
 git-tree-sha1 = "dfdf5519f235516220579f949664f1bf44e741c5"
@@ -45,16 +50,15 @@ uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
 version = "1.6.3"
 
 [[deps.Random]]
-deps = ["SHA", "Serialization"]
+deps = ["SHA"]
 uuid = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+version = "1.11.0"
 
 [[deps.SHA]]
 uuid = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 version = "0.7.0"
 
-[[deps.Serialization]]
-uuid = "9e88b42a-f829-5b0c-bbe9-9e923198166b"
-
 [[deps.UUIDs]]
 deps = ["Random", "SHA"]
 uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
+version = "1.11.0"
