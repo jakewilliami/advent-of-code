@@ -1,0 +1,15 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.9.4"
+manifest_format = "2.0"
+project_hash = "c3847c56d40ffdcc0283e6a777284198601e4cc8"
+
+[[deps.AdventOfCode]]
+path = "../../common/AdventOfCode.jl"
+uuid = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
+version = "0.3.3"
+
+[[deps.IntervalTrees]]
+git-tree-sha1 = "dc3b97bb5c9cb7c437f74027309f2c2f09a82aaf"
+uuid = "524e6230-43b7-53ae-be76-1e9e4d08d11b"
+version = "1.1.0"
