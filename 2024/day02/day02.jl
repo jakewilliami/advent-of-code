@@ -1,83 +1,59 @@
-using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-# using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
-
 function parse_input(input_file::String)
-    # M = readlines_into_char_matrix(input_file)
-    # S = strip(read(input_file, String))
-    L = strip.(readlines(input_file))
-    L = get_integers.(L)
-    return L
+    return Vector{Int}[parse.(Int, split(l)) for l in eachline(input_file)]
 end
 
-function issafe(l)
-    function isgt(l)
-        all(2:length(l)) do i
-            l[i-1] > l[i]
+# Each input vector is a "report," consisting of five "levels."  A report
+# is "safe" if the levels either gradually increase or decrease; that is
+# increase or decrease in not-too-large increments.
+function is_safe(v::Vector{Int})
+    function all_op(v::Vector{Int}, op)
+        all(2:length(v)) do i
+            op(v[i - 1], v[i])
         end
     end
-    function islt(l)
-        all(2:length(l)) do i
-            l[i-1] < l[i]
-        end
+
+    # First, check that they are gradually increasing or decreasing.
+    all_op(v, <) || all_op(v, >) || return false
+
+    # Then, confirm that the increments or decrements are not too large.
+    return all(2:length(v)) do i
+        1 <= abs(v[i - 1] - v[i]) <= 3
     end
-    function diffs(l)
-        return [abs(l[i-1] - l[i]) for i in 2:length(l)]
-    end
-    function f2(l)
-        all(diffs(l)) do i
-            1 <= i <= 3
-        end
-    end
-    return (isgt(l) || islt(l)) && f2(l)
 end
 
-function part1(data)
+part1(data) = sum(is_safe(v) for v in data)
 
-    c = 0
-    for l in data
-        if issafe(l)
-            c += 1
-        end
-    end
-    return c
-end
-
+# For part two, we can classify a "report" as "safe" if any one of the
+# "levels" can be removed and the remaining report is safe (as defined
+# in part 1).
 function part2(data)
-    c = 0
-    for l in data
-        found = false
-        for i in 1:length(l)
-            l2 = deepcopy(l)
-            deleteat!(l2, i)
-            if issafe(l2)
-                found = true
-                break
+    # A very naïve implementation to check that a report is safe if we
+    # remove any one of its levels.
+    function is_safe′(v::Vector{Int})
+        for i in eachindex(v)
+            v′ = deepcopy(v)
+            deleteat!(v′, i)
+            if is_safe(v′)
+                return true
             end
         end
-        c += found
+        return false
     end
-    return c
+
+    return sum(is_safe′(v) for v in data)
 end
 
 function main()
     data = parse_input("data02.txt")
-    # data = parse_input("data02.test.txt")
 
     # Part 1
     part1_solution = part1(data)
-    # @assert part1_solution ==
+    @assert part1_solution == 202
     println("Part 1: $part1_solution")
 
     # Part 2
     part2_solution = part2(data)
-    # @assert part2_solution ==
+    @assert part2_solution == 271
     println("Part 2: $part2_solution")
 end
 
