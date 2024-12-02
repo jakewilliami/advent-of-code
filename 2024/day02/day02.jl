@@ -1,3 +1,14 @@
+# Each row of the data contains a list of numbers.  Each row represents a
+# "report," and each number is a "level."
+#
+# Part 1 states that each report must be strictly increasing or decreasing,
+# and doing so gradually (not too steeply).  We count the number of reports
+# that meet these criteria.
+#
+# Part 2 states the same, except we are allowed to remove one level.  We
+# implement this in the naïve way, as there are not many levels in each
+# report, so brute forcing is still very quick.
+
 function parse_input(input_file::String)
     return Vector{Int}[parse.(Int, split(l)) for l in eachline(input_file)]
 end
@@ -13,6 +24,8 @@ function is_safe(v::Vector{Int})
     end
 
     # First, check that they are gradually increasing or decreasing.
+    # We could also sort the list both ways and check that it's the
+    # same as the original list.
     all_op(v, <) || all_op(v, >) || return false
 
     # Then, confirm that the increments or decrements are not too large.
