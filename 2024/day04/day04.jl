@@ -1,76 +1,111 @@
+# We were given a grid of characters in today's input, and we had to perform
+# what was essentially a word search.
+#
+# In part 1, we had to find all of the instances where the word "XMAS" appeared
+# in the grid.  This was straight forward, as you iterate over the indices of
+# the grid, and if you find an X, check for the rest of the word in the
+# surrounding directions (including diagonally).
+#
+# In part 2, we had to find a cross of "MAS"s.  This was just as simple; iterate
+# over the indices of the grid, and if you find an A, you might be in the middle
+# of a cross of "MAS"s, so you check the immediately adjacent diagonal indices
+# for the appropriate letters, and cound the results.
+
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-# using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
 
-function parse_input(input_file::String)
-    M = readlines_into_char_matrix(input_file)
-    return M
-    # S = strip(read(input_file, String))
-    L = strip.(readlines(input_file))
-    # L = get_integers.(L)
-    return L
+parse_input(input_file::String) = readlines_into_char_matrix(input_file)
+
+# Check that a string is present in the character array starting at i in the
+# given direction
+function string_in_direction(
+    data::AbstractArray{Char, N},
+    i::CartesianIndex{N},
+    dir::CartesianIndex{N},
+    expected::String,
+) where {N}
+    all(eachindex(expected)) do j
+        c = expected[j]
+        v = tryindex(data, i + (dir * j))
+        !isnothing(v) && v == c
+    end
 end
 
-function part1(data)
-    l = "XMAS"
-    r = 0
-    for i in CartesianIndices(data)
-        c = data[i]
-        if c == 'X'
-            for d in cartesian_directions(2)
-                function f(off, c2)
-                    j = CartesianIndex(i.I .+ (d.I .* off))
-                    return hasindex(data, j) && data[j] == c2
-                end
-                if f(1, 'M') && f(2, 'A') && f(3, 'S')
-                    r += 1
-                end
-            end
+function part1(data::Matrix{Char})
+    # All possible positions in the input matrix may be a valid starting point
+    return sum(CartesianIndices(data)) do i
+        # If the current character is not X (for XMAS), then this is not a
+        # valid starting point
+        data[i] == 'X' || return 0
+
+        # Check if the remainder of XMAS is present in any cartesian direction
+        # from the current position
+        sum(cartesian_directions(ndims(data))) do d
+            string_in_direction(data, i, d, "MAS")
         end
     end
-    r
 end
 
-function part2(data)
-    l = "XMAS"
-    r = 0
-    for i in CartesianIndices(data)
-        c = data[i]
-        if c == 'A'
-            tl = i + INDEX_TOP_LEFT
-            tr = i + INDEX_TOP_RIGHT
-            bl = i + INDEX_BOTTOM_LEFT
-            br = i + INDEX_BOTTOM_RIGHT
-            function f(j, c2)
-                return hasindex(data, j) && data[j] == c2
-            end
-
-            if ((f(tl, 'M') && f(br, 'S')) || (f(tl, 'S') && f(br, 'M'))) && ((f(bl, 'M') && f(tr, 'S')) || (f(bl, 'S') && f(tr, 'M')))
-                r += 1
-            end
-        end
+# Check that values `end1` and `end2` are on either diagonal side of the index
+# given in the specified diagonal direction.
+#
+# See also `is_diagonal`:
+# <https://github.com/jakewilliami/AdventOfCode.jl/blob/a0102896/src/multidimensional/directions.jl#L56-L68>
+function diagonal_adjacencies_are_values(
+    data::AbstractArray{T, N},
+    i::CartesianIndex{N},
+    dir::CartesianIndex{N},
+    end1::T,
+    end2::T,
+) where {T, N}
+    function check_expected_in_direction(
+        i::CartesianIndex{N},
+        dir::CartesianIndex{N},
+        expected::T,
+     )
+        v = tryindex(data, i + dir)
+        return !isnothing(v) && v == expected
     end
-    r
+
+    d1, d2 = dir, opposite_direction(dir)
+
+    # There are two options: the word is read from left to right or
+    # right to left.  We have to check both possibilities
+    option1 = check_expected_in_direction(i, d1, end1) &&
+        check_expected_in_direction(i, d2, end2)
+    option2 = check_expected_in_direction(i, d1, end2) &&
+        check_expected_in_direction(i, d2, end1)
+
+    return option1 || option2
+end
+
+function part2(data::Matrix{Char})
+    sum(CartesianIndices(data)) do i
+        data[i] == 'A' || return 0
+
+        # There are two directions we need to check to make the X:
+        #   - Descending diagonal (top-left to bottom-right); and
+        #   - Ascending diagonal (bottom-left to top-right).
+        #
+        # We only need to specify the left-most direction of the
+        # diagonal to the function.
+        mas1 = diagonal_adjacencies_are_values(data, i, INDEX_TOP_LEFT, 'M', 'S')
+        mas2 = diagonal_adjacencies_are_values(data, i, INDEX_BOTTOM_LEFT, 'M', 'S')
+
+        mas1 && mas2
+    end
 end
 
 function main()
     data = parse_input("data04.txt")
-    # data = parse_input("data04.test.txt")
 
     # Part 1
     part1_solution = part1(data)
-    # @assert part1_solution ==
+    @assert part1_solution == 2458
     println("Part 1: $part1_solution")
 
     # Part 2
     part2_solution = part2(data)
-    # @assert part2_solution ==
+    @assert part2_solution == 1945
     println("Part 2: $part2_solution")
 end
 
