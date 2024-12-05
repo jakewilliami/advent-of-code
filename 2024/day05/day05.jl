@@ -15,6 +15,9 @@
 # type but I wasn't getting the correct answer so I had to use a different solution
 # where I manually sort the lists.  Nevertheless, it was quite fun once I figured out
 # a solution.  This problem reminded me of day 13 of 2022.
+#
+# Instead of a custom sort function, you could also perform topological sorting.  I
+# don't know what kind of "sorting" my initial implementation was!
 
 using DataStructures: DefaultDict
 
