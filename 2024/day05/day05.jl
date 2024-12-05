@@ -36,10 +36,10 @@ end
 
 struct Instructions
     # Values indicate all numbers that should come strictly after the key
-    data::DefaultDict{Int, Vector{Int}}
+    data::DefaultDict{Int, Set{Int}}
 
     function Instructions(data::Vector{Tuple{Int, Int}})
-        D = DefaultDict{Int, Vector{Int}}(Vector{Int})
+        D = DefaultDict{Int, Set{Int}}(Set{Int})
 
         for (a, b) in data
             push!(D[a], b)
