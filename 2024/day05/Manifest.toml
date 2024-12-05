@@ -1,0 +1,17 @@
+# This file is machine-generated - editing it directly is not advised
+
+julia_version = "1.11.2"
+manifest_format = "2.0"
+project_hash = "db70adac55adf6c26e9c4c354c423b0adb0de6be"
+
+[[deps.AdventOfCode]]
+git-tree-sha1 = "7ada251b28279360fa23273ae7049849d859995e"
+repo-rev = "v0.6.2"
+repo-url = "https://github.com/jakewilliami/AdventOfCode.jl"
+uuid = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
+version = "0.6.2"
+
+[[deps.Combinatorics]]
+git-tree-sha1 = "08c8b6831dc00bfea825826be0bc8336fc369860"
+uuid = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
+version = "1.0.2"
