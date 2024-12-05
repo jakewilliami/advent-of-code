@@ -10,12 +10,11 @@
 # In part two, we are to find the sets that *aren't* in order, and order then (and
 # then count up certain elements in these newly ordered sets).
 #
-# This day took me a while.  I was actually rather stumped at the problem; I think
-# because you can't just trivially compare two numbers given Instructions and know
-# its order in the list, as you have to compare it to all other numbers in the list.
-# It's quite difficult to explain why I found it difficult.  Nevertheless, it was
-# quite fun once I figured out a solution, though I'm not sure my solution is any
-# good.  This problem reminded me of day 13 of 2022
+# This day took me a while.  I was actually rather stumped at the problem, but I
+# don't know why.  I also had a bug where I tried to extend Julia's Base.Order.Ordering
+# type but I wasn't getting the correct answer so I had to use a different solution
+# where I manually sort the lists.  Nevertheless, it was quite fun once I figured out
+# a solution.  This problem reminded me of day 13 of 2022.
 
 using DataStructures: DefaultDict
 
@@ -50,6 +49,8 @@ struct Instructions
     end
 end
 
+const I, 𝒫 = parse_input("data05.txt")
+
 
 ### Part 1 ###
 
@@ -83,42 +84,24 @@ end
 
 ### Part 2 ###
 
-# Given a set, find the element that should go before all others as per provided
-# instructions.  Optionally specify an offset from which to start checking
-function findfirst_allowed(S::Vector{Int}, I::Instructions; offset::Int = 0)
-    offset == length(S) && return last(S)
-    S′ = @view S[(firstindex(S) + offset):lastindex(S)]
-    for i in eachindex(S′)
-        if all(allowed_before(S′[i], S′[j], I) for j in setdiff(eachindex(S′), i))
-            return (i + offset, S′[i])
-        end
-    end
-end
-
-# Find an allowed order for the given set as per provided instructions
-function correct_order!(S::Vector{Int}, I::Instructions)
-    # The idea is incrementally move an element of a slice of the set near
-    # the front of
-    changes = 0
-    while changes < length(S)
-        i, x = findfirst_allowed(S, I, offset = changes)
-        deleteat!(S, i)
-
-        # Why does this work?  Since optimising/cleaning this solution this
-        # code doesn't look like it should work anymore...but it does?
-        #
-        # Old code:
-        # <https://github.com/jakewilliami/advent-of-code/blob/97420b0/2024/day05/day05.jl#L130-L143>
-        pushfirst!(S, x)
-        changes += 1
-    end
-    return S
-end
+# Define new ordering type based on the instructions provided.
+#
+# Note that I tried to do this earlier but couldn't get it to work in good
+# time, so I ended up going with a more manual sort solution:
+# <https://github.com/jakewilliami/advent-of-code/blob/6e34547/2024/day05/day05.jl#L86-L166>
+#
+# Since refactoring in 6e34547, this method now magically works.  I suspect
+# there might have been a bug in the old allowed_before function because it
+# was greedy so it was good enough for part one but not for proper sorting.
+# Now that we use this Instructions type that stores data internally with
+# all available information, adding a custom ordering type works.
+struct InstructionOrder <: Base.Order.Ordering end
+Base.Order.lt(_o::InstructionOrder, a, b) = allowed_before(a, b, I)
 
 function part2(I::Instructions, 𝒫::Vector{Vector{Int}})
     return sum(𝒫) do S
         allowed_order(S, I) && return 0
-        correct_order!(S, I)
+        sort!(S, order = InstructionOrder())
         S[length(S) ÷ 2 + 1]
     end
 end
@@ -127,8 +110,6 @@ end
 ### Main ###
 
 function main()
-    I, 𝒫 = parse_input("data05.txt")
-
     # Part 1
     part1_solution = part1(I, 𝒫)
     @assert part1_solution == 5509
