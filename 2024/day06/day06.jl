@@ -1,23 +1,40 @@
+# We were given a grid of characters, where dots are empty space and octothorpes
+# are obstacles.  There is one other character, the caret, which represents a
+# guard looking upwards.  The guard walks in a straight line and if they encounter
+# an obstacle, they turn 90° to the right and keep going.
+#
+# In part one, we just had to count the number of unique positions the guard goes
+# to in her rounds.
+#
+# In part two, the goal was to make the guard go in loops.  We could place a single
+# obstacle anywhere on the grid, except where the guard was, and count the number
+# of paths we could make her loop.
+#
+# I did this while Max, my brother, was driving us to Hawke's Bay, so I feel as
+# though I could have done part one much faster than I did due to difficulty typing.
+# I also found part two very difficult to do and I took a while to do it because I
+# had so many edge cases.  For a large part of the time I spent solving it, I had
+# working test data but failing real data.
+#
+# The main bug I had was eagerly incrementing the guard's position by the direction,
+# which failed to account for whether the (potentially newly-rotated direction) would
+# hit an obstacle.  I ended up walking the guard over obstacles.
+#
+# I also note that to check whether a loop has been found, checking the guard's
+# position is not enough; you have to check the direction as well, because going
+# through a position that the guard has already been to in a different direction means
+# they are not really looping.  And loops do not have to be squares; they can have
+# more than four corners (nodes)...  Lots of edge cases!
+
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-# using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
 
-function parse_input(input_file::String)
-    M = readlines_into_char_matrix(input_file)
-    return M
-    # S = strip(read(input_file, String))
-    # L = strip.(readlines(input_file))
-    # L = get_integers.(L)
-    return L
-end
 
-function ff(data)
+### Parse Input ###
+
+parse_input(input_file::String) =
+    readlines_into_char_matrix(input_file)
+
+function find_guard(data::Matrix{Char})
     for i in CartesianIndices(data)
         if data[i] == '^'
             return i
@@ -25,191 +42,80 @@ function ff(data)
     end
 end
 
-function part1(data)
+
+### Part 1 ###
+
+function part1(data::Matrix{Char})
     d = INDEX_UP
-    i = ff(data)
-    seen = Set((i,))
+    i = find_guard(data)
+    r = 0
+    seen = Set{CartesianIndex{2}}((i,))
+
+    # This might never stop if a loop is found, but the data are designed
+    # such that there shouldn't be a loop with these starting features
+    # (position and direction)
     while true
-        j = i + d
-        c = tryindex(data, j)
-        if isnothing(c)
-            return length(seen)
-        end
-        if c == '#'
-            d = rotr90(d)
-        end
-        i += d
+        c = tryindex(data, i + d)
+        isnothing(c) && return length(seen)
+        d = (c == '#' ? rotr90 : identity)(d)
+        data[i + d] != '#' && (i += d)
         push!(seen, i)
     end
 end
 
-function sim(start_i, oi, data)
-    i = start_i
-    d = INDEX_UP
-    start_d = d
-    # second_pos = d + i
-    # seen = Set(((i,d),))
-    seen = Set()
-    corners = Set()
+
+### Part 2 ###
+
+possible_obstructions(data::Matrix{Char}) =
+    Set{CartesianIndex{2}}(i for i in CartesianIndices(data) if data[i] ∉ ('#', '^'))
+
+function modification_adds_loop(
+    data::Matrix{Char},
+    start_i::CartesianIndex{2},
+    obstruction_i::CartesianIndex{2},
+)
+    i, d = start_i, INDEX_UP
+    seen = Set{NTuple{2, CartesianIndex{2}}}()
+
     while true
-        if oi == CartesianIndex(9, 2)
-            # @info i, d
-        end
-        j = i + d
-        d1=d
-        c = tryindex(data, j)
-        if isnothing(c)
-            return (false, corners)
-        end
-        if c == '#'
-            push!(corners, i)
+        c = tryindex(data, i + d)
+        isnothing(c) && return false
+
+        if c == '#' || i + d == obstruction_i
             d = rotr90(d)
         end
-        # i += d
-        #=
-        if i  === start_i && length(corners) >= 3
-            # c′ = tryindex(data, j)
-            # if !isnothing(c′) && c′ == '#'
-            if d == start_d
-                return (true, corners)
-            # else
-                # return (false, corners)
-            end
-        # else
-            # return false, corners
-        end=#
 
-        # if i == start_i
-            # return (true, corners)
-        # end
-        # i += d
-
-        # push!(seen, (i, d))
-        # @info i, d
-
-        if (i, d1) ∈ seen
-            return (true, corners)
-        end
+        (i, d) ∈ seen && return true
         push!(seen, (i, d))
-        i += d
 
-    end
-end
-
-function part21(data)
-    j = ff(data)
-    r = 0
-    corner_pos = Set()
-    for i in CartesianIndices(data)
-        i == j && continue
-        loop, corners = sim(i, data)
-        if loop && !all(==(corners), corner_pos)
-            r += 1
-        end
-        push!(corner_pos, corners)
-    end
-    r
-end
-
-function sim2(i, data)
-
-end
-
-function possible_obstructions(data)
-    S = Set()
-    for i in CartesianIndices(data)
-        if data[i] != '#' && data[i] != '^'
-            push!(S, i)
-        end
-    end
-    S
-end
-
-function sim(start_i, oi, data)
-    i = start_i
-    d = INDEX_UP
-    seen = Set()
-    seen1 = Set()
-    corners = Set()
-    while true
-        # if oi == CartesianIndex(3, 3)
-            # @info i, d
-        # end
-        if (i, d) ∈ seen  # || i ∈ seen1
-            return (true, corners)
-        end
-        push!(seen, (i, d))
-        # push!(seen1, i)
-
-        j = i + d
-        c = tryindex(data, j)
-        if isnothing(c)
-            return (false, corners)
-        end
-        if c == '#'
-            push!(corners, i)
-            d = rotr90(d)
-            if (i, d) ∈ seen  #|| (i + d, d) ∈ seen
-                return (true, corners)
-            end
-        end
-
-        # I HAD AN EDGE CASE WHERE I WALKED OVER OBSTACLES
-        # push!(seen, (i, d))
-        if data[i + d] != '#'
+        # Only increment the index if the next position is not an obstruction
+        # This test case really helped me:
+        # <reddit.com/r/adventofcode/comments/1h7v3lw>
+        if !(data[i + d] == '#' || i + d == obstruction_i)
             i += d
         end
     end
 end
 
-function part2(data)
-    # data[CartesianIndex(9, 2)] = '#'
-    # sim(ff(data), CartesianIndex(9,2), data)
-    # return 0
-    j = ff(data)
-    r = 0
-    corner_pos = Set()
-    obs = Set()
-    P = possible_obstructions(data)
-    for (n, i) in enumerate(P)
-        # println("$n/$(length(P))")
-        # @info i
-        data′ = deepcopy(data)
-        @assert data[i] == data′[i] == '.'
-        data′[i] = '#'
-        loop, corners = sim(j, i, data′)
-        if i == CartesianIndex(3, 3)
-            println(loop)
-        end
-        if loop #&& !any(==(corners), corner_pos)
-            push!(obs, i)
-            r += 1
-        end
-        push!(corner_pos, corners)
+function part2(data::Matrix{Char})
+    j = find_guard(data)
+    sum(possible_obstructions(data)) do i
+        modification_adds_loop(data, j, i)
     end
-    # println(obs)
-    length(obs)
-    r
 end
 
 function main()
     data = parse_input("data06.txt")
-    # data = parse_input("data06.test.txt")
-    # data = parse_input("data06.test2.txt")
 
     # Part 1
     part1_solution = part1(data)
-    # @assert part1_solution ==
+    @assert part1_solution == 4656
     println("Part 1: $part1_solution")
 
     # Part 2
     part2_solution = part2(data)
-    # @assert part2_solution ==
+    @assert part2_solution == 1575
     println("Part 2: $part2_solution")
 end
 
 main()
-
-# NOT 1455, too low
-# NOT 1467, too low
-# NOT 1475, too low
