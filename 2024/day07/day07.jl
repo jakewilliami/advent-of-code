@@ -16,9 +16,13 @@
 # (a family friend's 60th) and was talking through my thinking to an
 # interested party-goer.
 #
-# I couldn't think of one, but similar to yesterday, I do wonder if there
-# is a better, non-brute-force solution to this.  (And I am once again
-# greatful to be using Julia for its speed.)
+# I couldn't think of one, but similar to yesterday, I do wonder what
+# the better, non-brute-force solution to this is.  (And I am once
+# again grateful to be using Julia for its speed.)
+#
+# Jonathan Paulson has a really elegant solution using recursion and
+# utilising the fact that it's evaluated from left to right:
+# <https://github.com/jonathanpaulson/AdventOfCode/blob/c58061ba/2024/7.py#L14-L23>
 
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
 
