@@ -34,6 +34,9 @@ using AdventOfCode.Parsing, AdventOfCode.Multidimensional
 parse_input(input_file::String) =
     readlines_into_char_matrix(input_file)
 
+
+### Part 1 ###
+
 function find_guard(data::Matrix{Char})
     for i in CartesianIndices(data)
         if data[i] == '^'
@@ -41,9 +44,6 @@ function find_guard(data::Matrix{Char})
         end
     end
 end
-
-
-### Part 1 ###
 
 function part1(data::Matrix{Char})
     d = INDEX_UP
