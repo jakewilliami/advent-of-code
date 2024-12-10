@@ -1,142 +1,141 @@
+# We are given a grid of integers.  Each integer, 1--9, represents an elevation.
+# We start at any of the numbers 0, and move upwards by one step at a time.
+#
+# In part one, for each starting position, we must count the number of final
+# nodes that it can lead to.  In part two, we had to count the total number of
+# possible, unique paths to get to any of its final (leaf) nodes.
+#
+# I did okay, but not really okay compared to everyone else (I never used BFS
+# enough to implement it off the top of my head when it comes to AoC).  I
+# wasted a lot of time on part one as I misread the expected output, so I kept
+# trying different solutions looking for a different answer even though I
+# implemented it correctly the first time, so my time should have been much
+# better.  That being said, in this trial and error, I accidentally implemented
+# a solution for part two (unbeknownst to me), so once I read part two, I could
+# undo until I had my previous solution.
+
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
 using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
 
-function parse_input(input_file::String)
-    M = readlines_into_int_matrix(input_file)
-    return M
-    # S = strip(read(input_file, String))
-    L = strip.(readlines(input_file))
-    # L = get_integers.(L)
-    return L
-end
 
-function elevation_allowed(curr, next)
+### Part Input ###
+
+parse_input(input_file::String) = readlines_into_int_matrix(input_file)
+
+const Index = CartesianIndex{2}
+
+
+### Part 1 ###
+
+# Only allowed to move to the next square if it's a gradual increase
+function elevation_allowed(curr::Int, next::Int)
     (next - curr) == 1 || return false
     return true
 end
 
-# as long as possible and has an even, gradual, uphill slope
+# Starting at index `s` (that is, the "trailhead"), count its score (i.e., its
+# number of leaves [final nodes] after it branches off).  This is a BFS.
+#
+# This implementation was adapted from 2022, day 12.
+function count_trailhead_score(data::Matrix{Int}, s::Index)
+    Q, S, n = Queue{Index}(), Set{Index}(), 0
+    enqueue!(Q, s)
 
-function starts(data)
-    A = Set{CartesianIndex{ndims(data)}}()
-    for i in CartesianIndices(data)
-        if data[i] == 0
-            push!(A, i)
-        end
-    end
-    A
-end
-
-# from: 2022/day12/day12.jl
-function _bfs_core(data::Matrix{Int}, Q::Queue{Tuple{CartesianIndex{2}, Set{CartesianIndex{2}}}})
-    directions = cardinal_directions(2)
-    n = 0
     while !isempty(Q)
-        i, S = dequeue!(Q)
+        i = dequeue!(Q)
         i ∈ S && continue
-        # println(i, ", ", data[i])
         push!(S, i)
+
+        # If we have found a leaf (the end of the trail), we can increment
+        # the trailhead's score
         if data[i] == 9
             n += 1
             continue
         end
-        for d in directions
+
+        # Look for further paths in each cardinal/orthogonal direction
+        for d in cardinal_directions(2)
             j = i + d
             hasindex(data, j) || continue
+
+            # Only follow path if it's a gradual increase
             if elevation_allowed(data[i], data[j])
-                enqueue!(Q, (j, S))
+                enqueue!(Q, j)
             end
         end
     end
+
     return n
 end
 
-## I MISREAD THE EXPECTED OUTPUT I'M SO STUPID
-
 function part1(data)
-
-    r = 0
-    for s in starts(data)
-        Q = Queue{Tuple{CartesianIndex{2}, Set{CartesianIndex{2}}}}()
-        # Q = Queue{Tuple{CartesianIndex{2}, Int}}()
-        # S = Set{CartesianIndex{2}}()
-        # enqueue!(Q, (s, 0))
-        enqueue!(Q, (s, Set{CartesianIndex{2}}()))
-        x = _bfs_core(data, Q)
-        # println(x)
-        r += x
-        # enqueue!(Q, (s, 0))
+    return sum(CartesianIndices(data)) do i
+        data[i] == 0 || return 0
+        count_trailhead_score(data, i)
     end
-    r
-
-    # _bfs_core(data, Q, S)
-    # Q = Queue{CartesianIndex{N}}()
-    # i = 0
 end
 
-function _bfs_core(data::Matrix{Int}, start::CartesianIndex{2})
-    directions = cardinal_directions(2)
-    Q = Queue{Tuple{CartesianIndex{2}, Vector{CartesianIndex{2}}}}()  # Queue to hold (current index, path)
-    enqueue!(Q, (start, [start]))  # Start with the initial position and path
-    unique_paths = Set{Vector{CartesianIndex{2}}}()  # To store unique paths to 9
+
+### Part 2 ###
+
+# Determine the "rating" of the trailhead; that is, starting at index `s`, count
+# the number of unique paths to get to a leaf node.  This is a BFS.
+#
+# Similar to part 1, but we also must keep track of the current path taken, so
+# that we know.
+function count_trailhead_rating(data::Matrix{Int}, s::Index)
+    Q, n = Queue{Tuple{Index, Vector{Index}}}(), 0
+    enqueue!(Q, (s, [s]))
 
     while !isempty(Q)
-        current, path = dequeue!(Q)
+        i, p = dequeue!(Q)
 
-        if data[current] == 9
-            push!(unique_paths, path)  # Store the unique path to 9
-            continue  # Continue to explore other paths
+        # If we have found a leaf (the end of the trail), we can increment
+        # the trailhead's rating
+        if data[i] == 9
+            n += 1
+            continue
         end
 
-        for d in directions
-            next = current + d
-            hasindex(data, next) || continue
-            if elevation_allowed(data[current], data[next]) && !(next in path)
-                enqueue!(Q, (next, push!(copy(path), next)))  # Add the next node to the path
+        # Look for further paths in each cardinal/orthogonal direction
+        for d in cardinal_directions(2)
+            j = i + d
+            hasindex(data, j) || continue
+
+            # Only follow path if it's a gradual increase and we haven't been
+            # to this node before
+            if elevation_allowed(data[i], data[j]) && j ∉ p
+                # We must add this new node to our current path
+                p′ = push!(deepcopy(p), j)
+                enqueue!(Q, (j, p′))
             end
         end
     end
 
-    # for
-    return length(unique_paths)  # Return the count of unique paths reaching 9
+    return n
 end
 
 function part2(data)
-    r = 0
-    for s in starts(data)
-        # Q = Queue{Tuple{CartesianIndex{2}, Set{CartesianIndex{2}}}}()
-        Q = Queue{Tuple{CartesianIndex{2}, Int}}()
-        S = Set{CartesianIndex{2}}()
-        # enqueue!(Q, (s, 0))
-        # enqueue!(Q, (s, Set{CartesianIndex{2}}()))
-        x = _bfs_core(data, s)
-        # println(x)
-        r += x
-        # enqueue!(Q, (s, 0))
+    return sum(CartesianIndices(data)) do i
+        data[i] == 0 || return 0
+        count_trailhead_rating(data, i)
     end
-    r
 end
+
+
+### Main ###
 
 function main()
     data = parse_input("data10.txt")
-    # data = parse_input("data10.test.txt")
-    # data = parse_input("data10.test0.txt")
 
     # Part 1
     part1_solution = part1(data)
-    # @assert part1_solution ==
+    @assert part1_solution == 659
     println("Part 1: $part1_solution")
 
     # Part 2
     part2_solution = part2(data)
-    # @assert part2_solution ==
+    @assert part2_solution == 1463
     println("Part 2: $part2_solution")
 end
 
