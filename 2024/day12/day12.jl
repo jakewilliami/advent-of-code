@@ -1,74 +1,83 @@
-using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
+# We are given a grid of characters.  We have to group them by their value, and by
+# whether or not they are adjacent.  In part one, we count each group's perimeter
+# (that is, the number of squares that are exposed to the outside), and in part two,
+# the number of sides.
+#
+# I was quite slow today.  Part one took me a little while to figure out (with some
+# trial and error) exactly the kind of solution we need to write (i.e., a flood fill
+# one).  It reminded me of day 18 of 2022 (the lava)---and a bit of part two of day
+# 10 from last year.
+#
+# My solution for part two is really bad.  It works and it's somewhat efficient, but
+# it's not the best solution.  It took me a while to think of it, but I realise now
+# that in order to get the sides of the objects, you can just count the corners (or
+# the indices with two adjacent elements).
 
-function parse_input(input_file::String)
-    M = readlines_into_char_matrix(input_file)
-    return M
-    # S = strip(read(input_file, String))
-    L = strip.(readlines(input_file))
-    # L = get_integers.(L)
-    return L
-end
+using AdventOfCode.Parsing, AdventOfCode.Multidimensional
+using DataStructures
+
+
+### Parse Input ###
+
+parse_input(input_file::String) = readlines_into_char_matrix(input_file)
 
 const Index = CartesianIndex{2}
 
-function areas(data)
+
+### Part 1 ###
+
+# Given a matrix, group the (possibly non-adjacent) indices by their data value
+function areas(data::Matrix{Char})
     D = DefaultDict(Set{Index})
+
     for i in CartesianIndices(data)
         c = data[i]
         push!(D[c], i)
     end
 
-    D
+    return D
 end
 
-function area(S)
-    length(S)
-end
+# Get the "area" of a set of adjacent indices; that is, how many squares
+# does it take up in the matrix?
+area(S::Set{Index}) = length(S)
 
-function perimeter(S)
-    r = 0
-    for i in S
-        r += 4
-        for d in cardinal_directions(2)
-            j = i + d
-            if j ∈ S
-                r -= 1
-            end
-        end
+# Get the "perimeter" of a set of adjacent indices; that is, how many sides
+# are showing if you trace around it
+function perimeter(S::Set{Index})
+    return sum(S) do i
+        # In two dimensions, everything has four sides unless proven otherwise
+        n = 4
+
+        # If there is an adjacent index in this set, we must not count this
+        # side towards the perimeter
+        n -= sum((i + d) ∈ S for d in cardinal_directions(2))
+
+        n
     end
-    r
 end
 
-function are_cardinally_adjacent(i, j)
-    for d in cardinal_directions(2)
-        if i == (d + j)
-            return true
-        end
-    end
-    return false
-end
+# Check if index i is adjacent (in any of the four cardinal directions) to
+# index j
+are_cardinally_adjacent(i::Index, j::Index) =
+    any(i == (d + j) for d in cardinal_directions(2))
 
-function segments(S)
-    S′ = sort(collect(deepcopy(S)))
-    # i = pop!(S′)
-    # V = [Set((i,))]
-    V = []
+# Given a set of (possibly non-adjacent) indices, segment them into the
+# ones that are cardinally adjacent to one another.  We do this by doing
+# a "flood fill" on elements in the set until we have discovered all
+# segments.  That is, a BFS into each cardinal direction of elements
+# in the set.
+function segments(S::Set{Index})
+    S′ = deepcopy(S)
+    V = Set{Index}[]
 
     while !isempty(S′)
-        Q = Queue{Index}()
-        seen = Set{Index}()
+        # For each iteration, perform a flood fill starting at some
+        # element of S′ and finding all adjacent elements
+        Q, seen = Queue{Index}(), Set{Index}()
         i = pop!(S′)
         enqueue!(Q, i)
-        segment = Set{Index}()
-        push!(segment, i)
+        segment = Set{Index}((i,))
 
         while !isempty(Q)
             i = dequeue!(Q)
@@ -80,222 +89,142 @@ function segments(S)
                 if j ∈ S′
                     push!(segment, j)
                     enqueue!(Q, j)
-                    k = findfirst(==(j), S′)
-                    @assert !isnothing(k)
-                    deleteat!(S′, k)
+
+                    # Importantly, if we have found an adjacent element
+                    # in the set, we must delete it from the set to
+                    # indicate that it is used by a known segment
+                    delete!(S′, j)
                 end
             end
         end
+
+        # Add the discovered segment to the overall list
         push!(V, segment)
     end
 
-    # println(V)
     return V
+end
 
-
-
-    # take two: flood fill or whatever it's called
-    Q = Queue{Index}()
-    S′ = sort(collect(deepcopy(S)))
-    i = pop!(S′)
-    enqueue!(Q, i)
-    V = [Set((i,))]
-    seen = Set{Index}()
-    while !isempty(Q) && !isempty(S′)
-        i = dequeue!(Q)
-        if i ∈ seen
-            continue
-        end
-        push!(seen, i)
-
-        for d in cardinal_directions(2)
-            j = i + d
-            if j ∈ S′
-                k = findfirst(==(j), S′)
-                @assert !isnothing(k)
-                deleteat!(S′, k)
-                enqueue!(Q, j)
-                for m in 1:length(V)
-                    if any(are_cardinally_adjacent(j, l) for l in V[m])
-                        push!(V[m], j)
-                    end
-                end
-            end
+# For each group of object, add its area multiplied by its perimeter
+function part1(data::Matrix{Char})
+    D = areas(data)
+    return sum(values(D)) do S
+        sum(segments(S)) do s
+            area(s) * perimeter(s)
         end
     end
+end
 
-    return V
 
-    # take one:
-    return
-    S′ = deepcopy(S)
-    V = []
-    # push!(V, Set((pop!(S′),)))
-    try_counter = 0
-    while !isempty(S′)
-        i = pop!(S′)
+### Part 2 ###
+
+vert(i::Index) = first(Tuple(i))
+horiz(i::Index) = last(Tuple(i))
+
+# Given a set of integers (representing either vertical or horizontal
+# coordinates, it will count the number of adjacent groups of integers.
+# For example, [1, 2, 3, 4, 5] -> 1, but [1, 3, 5] -> 3.
+function count_adjacent(S::Set{Int})
+    s, e = extrema(S)
+    V = Set{Int}[]
+    for i in s:e
+        i ∈ S || continue
+
+        # Find a matching group of adjacent elements
         found = false
         for k in 1:length(V)
-            if any(are_cardinally_adjacent(i, j) for j in V[k]) && !found
-                push!(V[k], i)
+            if any(abs(i - j) == 1 for j in V[k])
                 found = true
+                push!(V[k], i)
+                break
             end
         end
-        if !found
-            if try_counter > 10
-                push!(V, Set((i,)))
-            else
-                push!(S′, i)
-            end
-        end
-        try_counter += 1
-        # println(V)
+
+        # If we haven't found a group that has an adjacent element,
+        # we need to make a new one
+        found || push!(V, Set((i,)))
     end
-    return V
+
+    return length(V)
 end
 
-function part1(data)
-    r = 0
-    D = areas(data)
-
-    for (k, v) in D
-        for s in segments(v)
-            a = area(s)
-            p = perimeter(s)
-            # println("$k: $a * $p = $(a * p)")
-            r += (a * p)
-        end
-    end
-    r
-end
-
-# for a given index, tell me the pairs of points between which there are sides
-function _sides(i::Index)
-    V = Set{NTuple{3, Index}}()
-    for d in cartesian_directions(2)
-        push!(V, (i, i + d, d))
-    end
-    V
-end
-
-function vert_elem(i::Index, j::Index)
-    return min(first.(Tuple.((i, j)))...)
-end
-
-function horiz_elem(i::Index, j::Index)
-    return min(last.(Tuple.((i, j)))...)
-end
-
-function count_adjacent(D_orig)
-    # println(D_orig)
-    r = 0
-    for D in values(D_orig)
-        s, e = extrema(keys(D))
-        V = []
-        # println("s=$s, e=$e")
-        for i in s:e
-            i ∈ keys(D) || continue
-            found = false
-            for k in 1:length(V)
-                if any(i == (j - 1) || i == (j + 1) for j in V[k]) && !found
-                    found = true
-                    push!(V[k], i)
-                end
-            end
-            if !found
-                push!(V, [i])
-            end
-        end
-        # println(V, " ", length(V))
-        r += length(V)
-    end
-    r
-end
-
+# This (very messy) code takes a set of adjacent indices and will count
+# the number of sides that block of indices has.  It does this by storing
+# information about each side in a dictionary and counting the number
+# of distinct groups of side information...
 function sides(S::Set{Index})
-    V = []
     S′ = deepcopy(S)
-    D = Dict() # DefaultDict(Set{Index}())
 
-    # start by collecting position information about each side
+    # This dictionary stores information about each side; first direction,
+    # then the unchanged component of the edge  (i.e., the horizontal
+    # component of the edge if the edge goes left to right, or the vertical
+    # component if not); and then the changeable component of the edge.
+    # We are required to keep track of the final step because this will
+    # allow us to discern whether a side in a particular direction at a
+    # particular vertical or horizontal index makes up one or more distinct
+    # sides (see `count_adjacent`).
+    D = Dict{Index, Dict{Int, Set{Int}}}()
+
+    # Start by collecting position information about each side
     while !isempty(S′)
         i = pop!(S′)
         for d in cardinal_directions(2)
             j = i + d
-            # ignore sides that are adjacent to each other
-            if j ∉ S
-                # add it to a dictionary
-                # first direction, then vertical, then horiz
-                # we also prefer top and left
-                if !haskey(D, d)
-                    D[d] = Dict()
-                end
-                # v = vert_elem(i, j)
-                # v = vert_elem(j, j)
-                vert = d ∈ (INDEX_UP, INDEX_DOWN)
-                v = vert ? vert_elem(j, j) : horiz_elem(j, j)
-                if !haskey(D[d], v)
-                    D[d][v] = Dict()
-                end
-                # h = horiz_elem(i, j)
-                # h = horiz_elem(j, j)
-                h = vert ? horiz_elem(j, j) : vert_elem(j, j)
-                if !haskey(D[d][v], h)
-                    D[d][v][h] = 0
-                end
-                D[d][v][h] += 1
+            # Ignore sides that are adjacent to each other
+            j ∈ S && continue
+
+            # Add this side to a dictionary
+            if !haskey(D, d)
+                D[d] = Dict{Int, Set{Int}}()
             end
+
+            # Get the non-changing component of the edge
+            isvert = first(Tuple(d)) != 0
+            a = isvert ? vert(j) : horiz(j)
+            if !haskey(D[d], a)
+                D[d][a] = Set()
+            end
+
+            # Finally add the changing component of the edge
+            b = isvert ? horiz(j) : vert(j)
+            push!(D[d][a], b)
         end
     end
 
-    # now count sides
-    # println(D)
-    r = 0
-    for (d, D′) in D
-        # @info d
-        # for (i, D′′) in D′
-            # @info i
-            r += count_adjacent(D′)
-        # end
+    # Now that we have information grouped by position of edges,
+    # we should be able to count the adjacent edges
+    return sum(values(D)) do D′
+        sum(values(D′)) do s
+            count_adjacent(s)
+        end
     end
-    r
-    # println(D)
-    # length(V)
 end
 
-function part2(data)
-    r = 0
+# For each group of object, add its area multiplied by the number of
+# sides it has
+function part2(data::Matrix{Char})
     D = areas(data)
-
-    for (k, v) in D
-        for s in segments(v)
-            l = sides(s)
-            a = area(s)
-            println("$k: $l * $a = $(l*a)")
-            r += l * a
+    return sum(values(D)) do S
+        sum(segments(S)) do s
+            area(s) * sides(s)
         end
     end
-    r
 end
+
+
+### Main ###
 
 function main()
-    data = parse_input("data12.txt")
-    # data = parse_input("data12.test2.txt")
-    # data = parse_input("data12.test3.txt")
-    data = parse_input("data12.test.txt")
-    data = parse_input("data12.test4.txt")
-    data = parse_input("data12.test5.txt")
-    data = parse_input("data12.test2.txt")
     data = parse_input("data12.txt")
 
     # Part 1
     part1_solution = part1(data)
-    # @assert part1_solution ==
+    @assert part1_solution == 1363484
     println("Part 1: $part1_solution")
 
     # Part 2
     part2_solution = part2(data)
-    # @assert part2_solution ==
+    @assert part2_solution == 838988
     println("Part 2: $part2_solution")
 end
 
