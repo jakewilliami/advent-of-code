@@ -1,204 +1,136 @@
-using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-# using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
+# Today was fun.  We were given a list of claw machines, where the target location
+# (on an imaginary 2D grid) was specified, along with two buttons.  Each button
+# moved the claw a specified amount in the x and y direction.  Pressing button a
+# cost 3 tokens and pressing button b cost 1.  The idea was to find a minimal
+# solution such that button presses add together to put the claw above the prize,
+# but we spend as few tokens as possible.
+#
+# The obvious solution to this was linear programming (LP).  I've used JuMP before,
+# which is great (though I don't use it between AoC each year so always forget its
+# syntax/API!).  I recall feeling similar success from its use in day 16 of 2022
+# (the pipes and valves one).
+#
+# When I initially started the problem, I went through a couple of iterations of
+# possible solutions.  I was even concerned for a little while that I would have
+# to use a non-linear solver, like I tried to do in day 21 of 2022.  Nevertheless,
+# I ended up writing a decent solution using LP.
+#
+# I had to start late today as I was at an improv show (check out PopRox!), but
+# as I had already written an LP solution for part 1, part 2 was very fast to
+# implement: we just had to add a large number to the target.  I was oviously
+# missing something "simple" in part one because adapting my solution for part
+# 2 was far too easy.  There must have been a brute force solution for part 1 that
+# I didn't find.
 
-const Button = CartesianIndex{2}
-const Prize = CartesianIndex{2}
+using JuMP, GLPK
 
-struct Machine
-    a::Button
-    b::Button
-    prize::Prize  # target
+
+### Parse Input ###
+
+mutable struct Machine
+    a::CartesianIndex{2}
+    b::CartesianIndex{2}
+    prize::CartesianIndex{2}  # target
 end
 
-const BUTTON_PAT = r"Button (?:A|B): X\+(?<x>\d+), Y\+(?<y>\d+)"
-const PRIZE_PAT = r"Prize: X=(?<x>\d+), Y=(?<y>\d+)"
+const BUTTON_PAT = r"^Button (?:A|B): X\+(?<x>\d+), Y\+(?<y>\d+)$"
+const PRIZE_PAT = r"^Prize: X=(?<x>\d+), Y=(?<y>\d+)$"
 
-function parse_line(s, pat, T)
-    m = match(pat, s)
+function parse_button(s::AbstractString)
+    m = match(BUTTON_PAT, strip(s))
     @assert !isnothing(m)
     x, y = parse.(Int, (m[:x], m[:y]))
-    return T(y, x)
+    return CartesianIndex{2}(y, x)
 end
 
-function parse_button(s)
-    m = match(BUTTON_PAT, s)
+function parse_prize(s::AbstractString)
+    m = match(PRIZE_PAT, strip(s))
     @assert !isnothing(m)
     x, y = parse.(Int, (m[:x], m[:y]))
-    return Button(y, x)
+    return CartesianIndex{2}(y, x)
 end
 
-function parse_prize(s)
-    m = match(PRIZE_PAT, s)
-    @assert !isnothing(m)
-    x, y = parse.(Int, (m[:x], m[:y]))
-    return Prize(y, x)
-end
-
-function parse_machine(s)
-    A = split(s, '\n')
+function parse_machine(s::AbstractString)
+    A = split(strip(s), '\n')
     @assert length(A) == 3
-    button_a = parse_button(A[1])
-    button_b = parse_button(A[2])
-    prize = parse_prize(A[3])
+    as, bs, ps = A
+    button_a = parse_button(as)
+    button_b = parse_button(bs)
+    prize = parse_prize(ps)
     return Machine(button_a, button_b, prize)
 end
 
 function parse_input(input_file::String)
-    # M = readlines_into_char_matrix(input_file)
     S = strip(read(input_file, String))
-    return [parse_machine(strip(s)) for s in split(S, "\n\n")]
-    # L = strip.(readlines(input_file))
-    # L = get_integers.(L)
-
-    return L
+    return Machine[parse_machine(s) for s in split(S, "\n\n")]
 end
 
-# 3 tokens to push button a and one to push button b
-#
-# What is the smallest number of tokens you would have to spend to win as many prizes as possible?
 
-# NL Solve?
-# https://github.com/jakewilliami/advent-of-code/blob/master/2022/day21/day21.jl
+### Part 1 ###
 
-using JuMP, GLPK
-
-function solve(machines)
-    cost_a = 3
-    cost_b = 2
-    model = Model(GLPK.Optimizer)
-
-    # Variables
-    @variable(model, x[1:length(machines)], Bin)  # x[i] = 1 if machine i is used, 0 otherwise
-
-    # Objective: Minimize the total cost
-    # @objective(model, Min, sum(cost_a * x[i] + cost_b * x[i] for i in 1:length(machines)))
-
-    # Constraints: Ensure that we can only win a prize if we press the buttons
-    # @constraint(model, [i in 1:length(machines)], x[i] * (machines[i].a + machines[i].b) >= machines[i].prize)
-
-    # Solve
-    optimize!(model)
-end
-
-# Can we with a prize with `tokens` tokens on `machine`?
-# recursion inspired by https://github.com/jonathanpaulson/AdventOfCode/blob/c58061ba/2024/7.py#L14-L23 from day 7
-function wins_prize(machine, tokens, state = 𝟘(2))
-    # println(tokens)
-    # break condition: we won a prize
-    if state == machine.prize
-        return true
-    end
-
-    if tokens ≥ 3 && wins_prize(machine, tokens - 3, state + machine.a)
-        return true
-    end
-
-    if tokens ≥ 1 && wins_prize(machine, tokens - 1, state + machine.b)
-        return true
-    end
-
-    return false
-end
-
-# What is the fewest tokens you would have to spend to win all possible prizes?
-
-function solve_presses_to_win(machine)
-    # TODO: this doesn't account for how much it costs
-    A = hcat(Int[Tuple(machine.a)...], Int[Tuple(machine.b)...])
-    b = vcat([Tuple(machine.prize)...])
-    # Use matrix solving in Julia
-    X = A \ b
-    if !all(isinteger, X)
-        return false, 0, 0
-    end
-    @assert length(X) == 2
-    a, b = round.(Int, X)
-    return true, a, b
-end
-
-function solve_presses_to_win(machine)
-    # A = hcat(Int[Tuple(machine.a)...], Int[Tuple(machine.b)...])
-    # b = vcat([Tuple(machine.prize)...])
-
+# Use linear programming to solve the equation to minimize the number of tokens spent
+function solve(machine::Machine)
     m = Model(GLPK.Optimizer)
 
-    # number of button presses a and b
+    # Number of button presses a and b
     @variable(m, a >= 0, Int)
     @variable(m, b >= 0, Int)
 
-    # button presses must add to target to win prize
-    # @constraint(m, machine.a * value(a) + machine.b * value(b) == machine.prize)
+    # Button presses must add to target in order to win prize
+    # Can't use cartesian indices directly so have to check each dimension separately
     @constraint(m, [i=1:2], a * machine.a.I[i] + b * machine.b.I[i] == machine.prize.I[i])
 
-    # minimize number of button presses
+    # Minimize number of button presses
     @objective(m, Min, 3a + b)
-
     optimize!(m)
 
-    if termination_status(m) == MOI.OPTIMAL
-        @assert all(isinteger, (value(a), value(b)))
-        optimal_a = round(Int, value(a))
-        optimal_b = round(Int, value(b))
+    # If no optimal solution is found, return zeros
+    # In real life, you wouldn't want to return valid numbers as it implies
+    # a solution was found, but for this situation it is good enough
+    termination_status(m) == MOI.OPTIMAL || return 0, 0
 
-        return true, optimal_a, optimal_b
+    # Otherwise, we found a solution
+    return round.(Int, (value(a), value(b)))
+end
+
+# Find the sum of tokens required to win prizes on a list of machines
+function solve(machines::Vector{Machine})
+    return sum(machines) do machine
+        a, b = solve(machine)
+        3a + b
     end
-
-    return false, 0, 0
 end
 
-function solve(machines)
+part1(data::Vector{Machine}) = solve(data)
+
+
+### Part 2 ###
+
+# add 10 trillion offset to target
+function offset_target!(machine::Machine; offset::Int = 10_000_000_000_000)
+    machine.prize += CartesianIndex(offset, offset)
+    return machine
 end
-
-function part1(data)
-    # machine = data[3]
-    # solve(data)
-    # solve_presses_to_win(machine)
-
-    r = 0
-    for (i, machine) in enumerate(data)
-        # println("$i/$(length(data))")
-        solvable, a, b = solve_presses_to_win(machine)
-        if solvable
-            r += 3a + b
-        end
-    end
-    return r
-end
-
-# obviously missed something "simple" in part one if part two was so easy to modify to solve.  must have been a brute force soltion i didn't find
 
 function part2(data)
-    r = 0
-    for (i, machine) in enumerate(data)
-        println("$i/$(length(data))")
-        machine = Machine(machine.a, machine.b, machine.prize + CartesianIndex(10000000000000, 10000000000000))
-        solvable, a, b = solve_presses_to_win(machine)
-        if solvable
-            r += 3a + b
-        end
-    end
-    return r
+    offset_target!.(data)
+    return solve(data)
 end
+
+
+### Main ###
 
 function main()
     data = parse_input("data13.txt")
-    # data = parse_input("data13.test.txt")
 
     # Part 1
     part1_solution = part1(data)
-    # @assert part1_solution ==
+    @assert part1_solution == 36571
     println("Part 1: $part1_solution")
 
     # Part 2
     part2_solution = part2(data)
-    # @assert part2_solution ==
+    @assert part2_solution == 85527711500010
     println("Part 2: $part2_solution")
 end
 
