@@ -40,10 +40,20 @@
 # That is, the final Christmas tree is inside a bounding box, which means we
 # can look for certain heuristics, such as many indices in a row, in order to
 # find the tree pattern.
-
-using AdventOfCode.Multidimensional
-using DataStructures
-
+#
+# Since the initial implementation for part 2:
+#   <github.com/jakewilliami/advent-of-code/blob/e408a417/2024/day14/day14.jl#L128-L151>
+#
+# I took some time to improve the heuristic-checking algorithm:
+#   <github.com/jakewilliami/advent-of-code/blob/a4bfb60b/2024/day14/day14.jl#L131-L165>
+#
+# But now I am using a system whereby I check the entropy of the arrangement of
+# robots to confirm if I have found the Christmas tree eater egg or not.  We say
+# we have found it if the entropy score is greater than 27.8%.  This now runs
+# much faster than previous heuristic-checking algorithms.  Though, intuitively,
+# I would expect more structured arrangements to have a *lower* entropy score? I
+# guess that to make a Christmas tree, you need fewer robots occupying the same
+# positions, so you have greater entropy as a result of it.
 
 ### Parse Input ###
 
@@ -128,37 +138,46 @@ end
 
 ### Part 2 ###
 
-# For each robot position, check if there are 9 more in a row
-function n_in_row(robots::Vector{Robot}, n::Int)
-    robot_positions = Set{Index}(robot.pos for robot in robots)
-    for i in robot_positions
-        Q = Queue{Tuple{Index, Direction, Int}}()
-        S = Set{Index}()
-        for d in cardinal_directions(2)
-            enqueue!(Q, (i, d, 1))
-        end
-        while !isempty(Q)
-            j, d, n = dequeue!(Q)
-            n == 10 && return true
-            j ∈ S && continue
-            k = j + d
-            if k ∈ robot_positions
-                enqueue!(Q, (k, d, n + 1))
-            end
-        end
+# Given a set of robots, calculate the amount of entropy in their positions
+#
+# Note that their entropy is on average ∼27.309%, with a minimum of ∼25.746%
+# and a maximum of ∼27.811%.  We only really care about entropies of greater
+# than 27.8% (std deviation ∼0.182%), because that's indicative of some kind
+# of pattern in the positions of the robots.
+function entropy(robots::Vector{Robot})
+    # Construct BitMatrix
+    M = falses(Tuple(GRID_SIZE))
+    for robot in robots
+        M[robot.pos + Index(1, 1)] = true
     end
-    return false
+
+    # Counts
+    N = prod(size(M))
+    n1 = sum(M)
+    n0 = N - n1
+
+    # Probabilities
+    p0 = n0 / N
+    p1 = n1 / N
+
+    # Calculate entropy
+    # https://en.wikipedia.org/wiki/Entropy_(information_theory)
+    return -sum((p0, p1)) do p
+        p > 0 || return 0
+        p * log2(p)
+    end
 end
 
-# This is slow, probably because `n_in_row` is poorly implemented, but it
-# gets the right answer.  The Christmas tree easter egg that appears as a
-# pattern in the data has a surrounding border, so we look for a pattern
-# with a straight line.  The boarder is 30- something wide, so this seems
-# to do the trick.
+
+# The Christmas tree easter egg that appears as a pattern in the data has
+# a greater entropy score than other configurations.
+#
+# I would have thought it would have a lower entropy score because it's more
+# structured, but sure.
 function part2(robots::Vector{Robot})
     n = 0
     while true
-        n_in_row(robots, 30) && return n
+        entropy(robots) > 0.278 && return n
         next!(robots)
         n += 1
     end
