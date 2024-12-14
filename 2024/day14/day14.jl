@@ -41,6 +41,9 @@
 # can look for certain heuristics, such as many indices in a row, in order to
 # find the tree pattern.
 
+using AdventOfCode.Multidimensional
+using DataStructures
+
 
 ### Parse Input ###
 
@@ -125,12 +128,23 @@ end
 
 ### Part 2 ###
 
+# For each robot position, check if there are 9 more in a row
 function n_in_row(robots::Vector{Robot}, n::Int)
-    positions = Index[robot.pos for robot in robots]
-    for i in Index(0, 0):GRID_SIZE
-        y, x = Tuple(i)
-        if all(Index(y, x + j) ∈ positions for j in 0:(n - 1))
-            return true
+    robot_positions = Set{Index}(robot.pos for robot in robots)
+    for i in robot_positions
+        Q = Queue{Tuple{Index, Direction, Int}}()
+        S = Set{Index}()
+        for d in cardinal_directions(2)
+            enqueue!(Q, (i, d, 1))
+        end
+        while !isempty(Q)
+            j, d, n = dequeue!(Q)
+            n == 10 && return true
+            j ∈ S && continue
+            k = j + d
+            if k ∈ robot_positions
+                enqueue!(Q, (k, d, n + 1))
+            end
         end
     end
     return false
