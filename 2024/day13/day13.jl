@@ -19,10 +19,15 @@
 # as I had already written an LP solution for part 1, part 2 was very fast to
 # implement: we just had to add a large number to the target.  I was oviously
 # missing something "simple" in part one because adapting my solution for part
-# 2 was far too easy.  There must have been a brute force solution for part 1 that
-# I didn't find.
-
-using JuMP, GLPK
+# 2 was far too easy.  There was a brute force solution for part 1 where you just
+# press each button up to 100 times and find the combination of button presses
+# that were the cheapest to do, but I didn't find that solution.
+#
+# I also realised that we could construct a matrix and solve it using linear algebra.
+# In my initial solution, I dismissed this because it doesn't take into account
+# how much each button press costs.  I'm still not sure how it works without taking
+# this into account.  That being said, I implemented it and it works.  Apparently
+# each machine has exactly zero or one solutions, so that's not an issue either.
 
 
 ### Parse Input ###
@@ -68,29 +73,22 @@ end
 
 ### Part 1 ###
 
-# Use linear programming to solve the equation to minimize the number of tokens spent
+# Solve the machine using linear algebra
+#
+# Previous solution using linear programming:
+#   <https://github.com/jakewilliami/advent-of-code/blob/af2ca6b0/2024/day13/day13.jl#L71-L94>
 function solve(machine::Machine)
-    m = Model(GLPK.Optimizer)
+    A = hcat(Int[Tuple(machine.a)...], Int[Tuple(machine.b)...])
+    b = vcat([Tuple(machine.prize)...])
+    X = A \ b
 
-    # Number of button presses a and b
-    @variable(m, a >= 0, Int)
-    @variable(m, b >= 0, Int)
+    # Round and check if it back-solves; if so, the machine has an integer solution
+    pa, pb = round.(Int, X)
+    if (pa * A[1, 1] + pb * A[1, 2] == b[1]) && (pa * A[2, 1] + pb * A[2, 2] == b[2])
+        return pa, pb
+    end
 
-    # Button presses must add to target in order to win prize
-    # Can't use cartesian indices directly so have to check each dimension separately
-    @constraint(m, [i=1:2], a * machine.a.I[i] + b * machine.b.I[i] == machine.prize.I[i])
-
-    # Minimize number of button presses
-    @objective(m, Min, 3a + b)
-    optimize!(m)
-
-    # If no optimal solution is found, return zeros
-    # In real life, you wouldn't want to return valid numbers as it implies
-    # a solution was found, but for this situation it is good enough
-    termination_status(m) == MOI.OPTIMAL || return 0, 0
-
-    # Otherwise, we found a solution
-    return round.(Int, (value(a), value(b)))
+    return 0, 0
 end
 
 # Find the sum of tokens required to win prizes on a list of machines
@@ -125,7 +123,7 @@ function main()
 
     # Part 1
     part1_solution = part1(data)
-    @assert part1_solution == 36571
+    @assert part1_solution == 36571 part1_solution
     println("Part 1: $part1_solution")
 
     # Part 2
