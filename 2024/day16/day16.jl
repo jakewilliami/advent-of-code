@@ -1,21 +1,37 @@
-using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
+# We were given a grid with a start and and end.  We had to find our way
+# through a maze that had walls in it, and each action we could take would
+# increase or decrease our score.  In part 1 we had to find the best score
+# we could make to get through the maze, and in part two, we had to find
+# all positions in the paths that gave us this score.
+#
+# While the problem statement is not so complicated, the problem was deceiv-
+# ingly difficult for me.  I ended up implementing a simple BFS in 10 minutes
+# *and* getting the right answer for *both* test inputs.  "Easy," I thought...
+# It was wrong for my puzzle input.
+#
+# I realised that my BFS was greedy in a sense, and that I needed to store
+# the best possible avenues on the top of the stack when searching through
+# the grid.  I don't know exactly what this is; is it Dijkstra's?  I ended up
+# looking at some others' code, which helped a lot.  I discovered a binary
+# heap structure which is like a stack that gives you the "best" at the top,
+# based on some ordering.  In part two, I used a clever trick (not my own
+# design) of storing the best possible score from the start at each index
+# in the grid.  Overall fun and interesting and I learned, but a little
+# disapppointed that I couldn't immediately solve it without some hints...
 
-function parse_input(input_file::String)
-    M = readlines_into_char_matrix(input_file)
-    return M
-    # S = strip(read(input_file, String))
-    L = strip.(readlines(input_file))
-    # L = get_integers.(L)
-    return L
-end
+using AdventOfCode.Parsing, AdventOfCode.Multidimensional
+using DataStructures
+
+
+### Parse Input ###
+
+const Index = CartesianIndex{2}
+
+parse_input(input_file::String) =
+    readlines_into_char_matrix(input_file)
+
+
+### Part 1 ###
 
 function find_start(M)
     for i in CartesianIndices(M)
@@ -25,285 +41,114 @@ function find_start(M)
     end
 end
 
-const Index = CartesianIndex{2}
-
-function render(M, V)
-    M = deepcopy(M)
-    io = IOBuffer()
-    D = Dict{Index, Char}(INDEX_UP => '^', INDEX_DOWN => 'v', INDEX_LEFT => '<', INDEX_RIGHT => '>')
-    for (i, d) in V
-        if M[i] ∉ "SE"
-            M[i] = D[d]
-        end
-    end
-    for row in eachrow(M)
-        println(io, join(row))
-    end
-    println(String(take!(io)))
-end
-
-function part1a(M)
-    i = find_start(M)
-    d = INDEX_EAST
-
-    # T = Tuple{Index, Direction, Int, Set{Tuple{Index, Direction}}, Vector{Tuple{Index, Direction}}}
-    # T = Tuple{Index, Direction, Int, Set{Tuple{Index, Direction}}}
-    T = Tuple{Index, Direction, Int}
-    Q = Queue{T}()
-    S = Set{Tuple{Index, Direction}}()
-    enqueue!(Q, (i, d, 0))#, Set{Tuple{Index, Direction}}())) # Tuple{Index, Direction}[]
-    score = typemax(Int)
-    V = []
-
-    while !isempty(Q)
-        i, d, s = dequeue!(Q)
-
-        if hasindex(M, i) && M[i] == 'E'
-            if s < score
-                score = s
-                # V = P
-            end
-            continue
-        end
-
-        if (i, d) ∈ S
-            continue
-        end
-        push!(S, (i, d))
-        # push!(P, (i, d))
-
-        for (j, d′, s′) in ((i + d, d, 1), (i, rotr90(d), 1000), (i, rotl90(d), 1000))
-            if hasindex(M, j) && M[j] != '#'
-                enqueue!(Q, (j, d′, s + s′))#, deepcopy(S)))#, deepcopy(P)))
-            end
-        end
-    end
-
-    render(M, V)
-
-    score
-end
-
-using Graphs
-import Graphs: SimpleGraphs.SimpleEdge
-
-# part 1 binary heap idea from https://github.com/jonathanpaulson/AdventOfCode/blob/46c09b4ddd0eb0ad0625a645a099af57c36410e1/2024/16.py
+# Binary heap idea from:
+# <https://github.com/jonathanpaulson/AdventOfCode/blob/46c09b4d/2024/16.py>
+#
+# I knew I needed a data structure that stored better paths on top (as BFS
+# was greedy), but I didn't know what it was called as I don't recall ever
+# using one.
 function part1(M)
-    i = find_start(M)
-    d = INDEX_EAST
-    # Q = Queue{Tuple{Int, Index, Direction}}()
-    Q = MutableBinaryHeap(Base.By(last), Tuple{Index, Direction{2}, Int}[])
-    push!(Q, (i, d, 0))
-
-    dist = Dict()
-    S = Set{Tuple{Index, Direction}}()
+    # Store and sort by score at the end of the state tuple
+    Q = MutableBinaryHeap{Tuple{Index, Direction{2}, Int}}(Base.By(last))
+    push!(Q, (find_start(M), INDEX_EAST, 0))
+    S = Set{Tuple{Index, Direction{2}}}()
     best = typemax(Int)
 
     while !isempty(Q)
         i, d, s = pop!(Q)
-        if !haskey(dist, (i, d))
-            dist[(i, d)] = s
-        end
+
         if M[i] == 'E' && s < best
+            # If we've reached the end of the maze and out final score is
+            # better than any we've previously found, update the best known
+            # score
             best = s
         end
-        if (i, d) ∈ S
-            continue
-        end
+
+        (i, d) ∈ S && continue
         push!(S, (i, d))
+
+        # We have three options:
+        #   1. Move forward at the cost of 1, as long as it's not into a wall;
+        #   2. Rotate 90 degrees clockwise at the cost of 1000; and
+        #   3. Rotate 90 degrees anticlockwise at the cost of 1000.
         j = i + d
         if hasindex(M, j) && M[j] != '#'
             push!(Q, (j, d, s + 1))
-        end
-        push!(Q, (i, rotr90(d), s + 1000))
-        push!(Q, (i, rotl90(d), s + 100))
-    end
-    best
-end
-
-function p1dist(M)
-    i = find_start(M)
-    d = INDEX_EAST
-    # Q = Queue{Tuple{Int, Index, Direction}}()
-    Q = MutableBinaryHeap(Base.By(last), Tuple{Index, Index, Int}[])
-    push!(Q, (i, d, 0))
-
-    dist = Dict()
-    S = Set{Tuple{Index, Direction}}()
-    best = typemax(Int)
-
-    while !isempty(Q)
-        i, d, s = pop!(Q)
-        if !haskey(dist, (i, d))
-            dist[(i, d)] = s
-        end
-        if M[i] == 'E' && s < best
-            best = s
-        end
-        if (i, d) ∈ S
-            continue
-        end
-        push!(S, (i, d))
-        j = i + d
-        if hasindex(M, j) && M[j] != '#'
-            push!(Q, (j, d, s + 1))
-        end
-        push!(Q, (i, rotr90(d), s + 1000))
-        push!(Q, (i, rotl90(d), s + 100))
-    end
-    dist, best
-end
-
-function find_end(M)
-    for i in CartesianIndices(M)
-        if M[i] == 'E'
-            return i
-        end
-    end
-end
-
-function part2a(M)
-    i = find_end(M)
-    # Q = Queue{Tuple{Int, Index, Direction}}()
-    Q = MutableBinaryHeap(Base.By(last), Tuple{Index, Index, Int}[])
-    S = Set{Tuple{Index, Direction}}()
-    for d in cardinal_directions(2)
-        push!(Q, (i, d, 0))
-    end
-    dist = Dict()
-    while !isempty(Q)
-        i, d, s = pop!(Q)
-        if !haskey(dist, (i, d))
-            dist[(i, d)] = s
-        end
-        if (i, d) ∈ S
-            continue
-        end
-        push!(S, (i, d))
-        # going backwards instead of forwards here
-        d′ = rot180(d)
-        j = i + d′
-        if hasindex(M, j) && M[j] != '#'
-            push!(Q, (j, d′, s + 1))
         end
         push!(Q, (i, rotr90(d), s + 1000))
         push!(Q, (i, rotl90(d), s + 1000))
     end
 
-    dist1, best = p1dist(M)
-    println(best)
-    P = Set{Index}()
-    for i in CartesianIndices(M)
-        for d in cardinal_directions(2)
-            # (i, d) is on an optimal path if the distance from the start to end equals the distance from the start to (i, d) plus the distance from (i, d) to end
-            t = (i, d)
-            haskey(dist1, t) || continue
-            haskey(dist, t) || continue
-            if (dist1[t] + dist[t]) == best
-                push!(P, i)
-            end
-         end
-    end
-
-    length(P)
+    return best
 end
 
-# part 2 seen matrix idea from https://github.com/michel-kraemer/adventofcode-rust/blob/0300ade92131e605a7f38f34b8a9372555ebb508/2024/day16/src/main.rs/https://www.reddit.com/r/adventofcode/comments/1hfboft/comment/m2auven/
-function part2(M)
-    i = find_start(M)
-    d = INDEX_EAST
-    Q = MutableBinaryHeap(Base.By(last), Tuple{Index, Direction{2}, Vector{Index}, Int}[])
-    push!(Q, (i, d, [], 0))
 
-    # dist = Dict()
-    # S = Set{Tuple{Index, Direction}}()
+### Part 2 ###
+
+# The "seen" matrix idea comes from:
+# <https://github.com/michel-kraemer/adventofcode-rust/blob/0300ade9/2024/day16/src/main.rs>
+# <https://www.reddit.com/r/adventofcode/comments/1hfboft/comment/m2auven>
+#
+# Which keeps track of the best score at each position in the grid.
+function part2(M)
+    # Just like we did in part 1, except we need to keep track of the path as well
+    Q = MutableBinaryHeap{Tuple{Index, Direction{2}, Vector{Index}, Int}}(Base.By(last))
+    push!(Q, (find_start(M), INDEX_EAST, [], 0))
+    S = fill(typemax(Int) - 1000, size(M))
     best = typemax(Int)
 
-    # a mapping of seen places and their lowest score
-    seen = fill(typemax(Int) - 1000, size(M))
-
-    # BS = Set{Int}()
+    # Keep track of all the best paths
     BP = Set{Index}()
 
     while !isempty(Q)
         i, d, P, s = pop!(Q)
 
         if M[i] == 'E' && s ≤ best
-            # if s > best
-                # This path is worse than any best path we've found before, and
-                # not other path from here will be any good
-                # break
-            # end
-
             best = s
 
-            for p in P
-                push!(BP, p)
-            end
+            # We have reached the end of the maze, and it's better than
+            # or equal to our best score.  Update the set of best points
+            # to sit in the maze.
+            union!(BP, P)
         end
 
-        for d′ in cardinal_directions(2)
+        # Iterate over the options we have
+        for (d′, m) in ((d, 1), (rotr90(d), 1000), (rotl90(d), 1000))
             j = i + d′
-            s′ = s
-            if d == origin(2) || d == d′
-                s′ += 1
-            else
-                s′ += 1000
-            end
-
-            # let last_seen_score = seen[ny as usize * width + nx as usize];
-            last_seen_score = seen[j]
+            s′ = s + m
 
             prev_dy, prev_dx = Tuple(d)
             dy, dx = Tuple(d′)
             if hasindex(M, j) && M[j] != '#' &&
-                # don't go back
-                !(prev_dx == 0 && prev_dy == -dy) &&
-                !(prev_dx == -dx && prev_dy == 0) &&
-                #  we might have stepped on a path where we were just about to turn
-                # just continue and see how it goes
-                s′ ≤ (last_seen_score + 1000)
+                #  we might have stepped on a path where we were just about to turn,
+                # so continue and see how it goes
+                s′ ≤ (S[j] + 1000)
 
-                seen[j] = s′
+                S[j] = s′
                 push!(Q, (j, d′, push!(deepcopy(P), j), s′))
             end
         end
-
-        #=if (i, d) ∈ S
-            continue
-        end
-        push!(S, (i, d))
-        j = i + d
-        if hasindex(M, j) && M[j] != '#'
-            push!(Q, (j, d, push!(deepcopy(P), j), s + 1))
-        end
-        push!(Q, (i, rotr90(d), push!(deepcopy(P), i), s + 1000))
-        push!(Q, (i, rotl90(d), push!(deepcopy(P), i), s + 100))=#
     end
-    return length(BP) + 1  # including the start
+
+    # Return the number of best spots to sit, including the start
+    return length(BP) + 1
 end
+
+
+### Main ###
 
 function main()
     data = parse_input("data16.txt")
-    # data = parse_input("data16.test.txt")
-    # data = parse_input("data16.test2.txt")
 
     # Part 1
     part1_solution = part1(data)
-    # @assert part1_solution ==
+    @assert part1_solution == 89460
     println("Part 1: $part1_solution")
 
     # Part 2
     part2_solution = part2(data)
-    # @assert part2_solution ==
+    @assert part2_solution == 504
     println("Part 2: $part2_solution")
 end
 
 main()
-
-# NOT 97432
-
-# p2
-# NOT 461, too low
-# NOT 587, too high
-# NOT 435
