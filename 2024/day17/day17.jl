@@ -1,22 +1,51 @@
-using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-# using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
+# Today was interesting.  We were given three registers' initial states, and a
+# program, which is a series of numbers.  Based on some specified operations,
+# we were to simulate the given program, which can modify the registry's state
+# and output numbers.
+#
+# In part 1, we simply needed to simulate the machine as per the instructions
+# on how the machine works, which was provided in the problem statement.  This
+# was fine; literally no trick here.
+#
+# Part 2, however...we were asked to find an initial value for A such that the
+# program's output is the same as the input program.  A quine, as it were!
+# There is some logic related to the way the program is parsed which means we
+# can effectively work backwards to find the answer.  I don't fully understand
+# it so my solution to this part is not entirely my own, but adapted from the
+# following:
+# <https://www.reddit.com/r/adventofcode/comments/1hg38ah/comment/m2glx6y/>
+#
+# A lot of today's part 2 solutions seemed to be not generic for all inputs,
+# but a result of specific program inputs.  I'm keen to better understand
+# why this solution works, and if there is a generalised solution for this
+# problem.  (I don't think you can simply work backwards because the operations
+# are not all one-to-one invertible.)
 
-mutable struct Reg
+using AdventOfCode.Parsing
+
+
+### Parse Input ###
+
+mutable struct Registry
     A::Int
     B::Int
     C::Int
 end
 
+mutable struct State
+    reg::Registry
+    ptr::Int
+    out::Vector{Int8}
+end
+
+State(reg::Registry) = State(reg, 0, Int[])
+
+mutable struct Machine
+    state::State
+    program::Vector{Int8}
+end
+
 function parse_input(input_file::String)
-    # M = readlines_into_char_matrix(input_file)
-    # S = strip(read(input_file, String))
     L = strip.(readlines(input_file))
     L = get_integers.(L)
     @assert length(L) == 5
@@ -26,247 +55,163 @@ function parse_input(input_file::String)
     @assert isempty(L[4])
     P = L[5]
     @assert all(x -> 0 ≤ x ≤ 7, P)
-    return Reg(A, B, C), P
-    return L
+    return Machine(State(Registry(A, B, C)), Int8.(P))
 end
 
-function combo_operand(operand::Int, R::Reg)
-    operand == 7 && error("not allowed")
+
+### Part 1 ###
+
+function combo_operand(machine::Machine, operand::Int8)
+    operand == 7 && error("operand not allowed")
     0 ≤ operand ≤ 3 && return operand
-    operand == 4 && return R.A
-    operand == 5 && return R.B
-    operand == 6 && return R.C
+    operand == 4 && return machine.state.reg.A
+    operand == 5 && return machine.state.reg.B
+    operand == 6 && return machine.state.reg.C
     error("unreachable")
 end
 
-# The adv instruction (opcode 0) performs division. The numerator is the value in the A register. The denominator is found by raising 2 to the power of the instruction's combo operand. (So, an operand of 2 would divide A by 4 (2^2); an operand of 5 would divide A by 2^B.) The result of the division operation is truncated to an integer and then written to the A register.
-function adv!(ptr::Int, R::Reg, operand::Int, _io::IOBuffer)
-    # println("div and store in A")
-    co = combo_operand(operand, R)
-    r = R.A ÷ 2^co
-    R.A = r
-    return ptr + 2
+function adv!(machine::Machine, operand::Int8)
+    co = combo_operand(machine, operand)
+    machine.state.reg.A = machine.state.reg.A ÷ 2^co
+    machine.state.ptr += 2
+    return machine
 end
 
-# The bxl instruction (opcode 1) calculates the bitwise XOR of register B and the instruction's literal operand, then stores the result in register B.
-function bxl!(ptr::Int, R::Reg, operand::Int, _io::IOBuffer)
-    # println("xor and store in B")
-    r = R.B ⊻ operand
-    R.B = r
-    return ptr + 2
+function bxl!(machine::Machine, operand::Int8)
+    machine.state.reg.B = machine.state.reg.B ⊻ operand
+    machine.state.ptr += 2
+    return machine
 end
 
-# The bst instruction (opcode 2) calculates the value of its combo operand modulo 8 (thereby keeping only its lowest 3 bits), then writes that value to the B register.
-function bst!(ptr::Int, R::Reg, operand::Int, _io::IOBuffer)
-    # println("mod and store in B")
-    # println("operand=$operand")
-    co = combo_operand(operand, R)
-    # println("mod($co, 8) => $(mod(co, 8))")
-    r = mod(co, 8)
-    # println("res: $r")
-    R.B = r
-    return ptr + 2
+function bst!(machine::Machine, operand::Int8)
+    co = combo_operand(machine, operand)
+    machine.state.reg.B = mod(co, 8)
+    machine.state.ptr += 2
+    return machine
 end
 
-# The jnz instruction (opcode 3) does nothing if the A register is 0. However, if the A register is not zero, it jumps by setting the instruction pointer to the value of its literal operand; if this instruction jumps, the instruction pointer is not increased by 2 after this instruction.
-function jnz(ptr::Int, R::Reg, operand::Int, _io::IOBuffer)
-    # println("jmp")
-    iszero(R.A) && return ptr + 2
-    return operand
+function jnz!(machine::Machine, operand::Int8)
+    if iszero(machine.state.reg.A)
+        machine.state.ptr += 2
+        return machine
+    end
+    machine.state.ptr = operand
+    return machine
 end
 
-# The bxc instruction (opcode 4) calculates the bitwise XOR of register B and register C, then stores the result in register B. (For legacy reasons, this instruction reads an operand but ignores it.)
-function bxc!(ptr::Int, R::Reg, _operand::Int, io::IOBuffer)
-    # println("xor w/ C and store in B")
-    r = R.B ⊻ R.C
-    R.B = r
-    return ptr + 2
+function bxc!(machine::Machine, _operand::Int8)
+    machine.state.reg.B = machine.state.reg.B ⊻ machine.state.reg.C
+    machine.state.ptr += 2
+    return machine
 end
 
-# The out instruction (opcode 5) calculates the value of its combo operand modulo 8, then outputs that value. (If a program outputs multiple values, they are separated by commas.)
-function out!(ptr::Int, R::Reg, operand::Int, io::IOBuffer)
-    # operand
-    # println("out")
-    co = combo_operand(operand, R)
-    r = mod(co, 8)
-    print(io, r, ",")
-    return ptr + 2
+function out!(machine::Machine, operand::Int8)
+    co = combo_operand(machine, operand)
+    push!(machine.state.out, mod(co, 8))
+    machine.state.ptr += 2
+    return machine
 end
 
-# The bdv instruction (opcode 6) works exactly like the adv instruction except that the result is stored in the B register. (The numerator is still read from the A register.)
-function bdv!(ptr::Int, R::Reg, operand::Int, _io::IOBuffer)
-    # println("div and store in B")
-    co = combo_operand(operand, R)
-    r = R.A ÷ 2^op
-    R.B = r
-    return ptr + 2
+function bdv!(machine::Machine, operand::Int8)
+    co = combo_operand(machine, operand)
+    machine.state.reg.B = machine.state.reg.A ÷ 2^op
+    machine.state.ptr += 2
+    return machine
 end
 
-# The cdv instruction (opcode 7) works exactly like the adv instruction except that the result is stored in the C register. (The numerator is still read from the A register.)
-function cdv!(ptr::Int, R::Reg, operand::Int, _io::IOBuffer)
-    # println("div and store in C")
-    co = combo_operand(operand, R)
-    r = R.A ÷ 2^co
-    R.C = r
-    return ptr + 2
+function cdv!(machine::Machine, operand::Int8)
+    co = combo_operand(machine, operand)
+    machine.state.reg.C = machine.state.reg.A ÷ 2^co
+    machine.state.ptr += 2
+    return machine
 end
 
-function getop(op::Int)
-    if op == 0
-        return adv!
-    elseif op == 1
-        return bxl!
-    elseif op == 2
-        return bst!
-    elseif op == 3
-        return jnz
-    elseif op == 4
-        return bxc!
-    elseif op == 5
-        return out!
-    elseif op == 6
-        return bdv!
-    elseif op == 7
-        return cdv!
-    else
-        error("unreachable")
+function getop(op::Int8)
+    op == 0 && return adv!
+    op == 1 && return return bxl!
+    op == 2 && return bst!
+    op == 3 && return jnz!
+    op == 4 && return bxc!
+    op == 5 && return out!
+    op == 6 && return bdv!
+    op == 7 && return cdv!
+    error("unreachable")
+end
+
+function run!(machine::Machine)
+    while machine.state.ptr < length(machine.program)
+        pi = machine.state.ptr + 1
+        op! = getop(machine.program[pi])
+        op!(machine, machine.program[pi + 1])
     end
 end
 
-function run!(R::Reg, P, io)
-    ptr = 0
-    while ptr < length(P)
-        # println(ptr)
-        pi = ptr + 1
-        op = getop(P[pi])
-        # println(op)
-        ptr = op(ptr, R, P[pi + 1], io)
-    end
-    s = String(take!(io))
-    return s[1:end-1]
+function part1(machine::Machine)
+    run!(machine)
+    return join(machine.state.out, ',')
 end
 
-function run!(R::Reg, P)
-    run!(R, P, IOBuffer())
-end
 
-function part1(R, P)
-    # R, P
-    # R = Reg(0, 2024, 43690)
-    # P = [4,0]
-    println(join(P, ','))
-    R.A = 265601188299675
-    res = run!(R, P)
-    res
-end
+### Part 2 ###
 
-function Base.copyto!(R1::Reg, R2::Reg)
+function Base.copyto!(R1::Registry, R2::Registry)
     R1.A = R2.A
     R1.B = R2.B
     R1.C = R2.C
     return R2
 end
 
-function part2bruteforce(R, P)
-    R′ = deepcopy(R)
-    expected = join(P, ',')
-    io = IOBuffer()
-
-    a = 69995476287488
-    while true
-        copyto!(R, R′)
-        R.A = a
-        res = run!(R, P, io)
-        # println("$a: $res")
-        if res == expected
-            return a
-        end
-        a += 1
-    end
-end
-
-# part2 = part2bruteforce
-# part2 = part1
-
-function part2bruteforceish(R, P)
-    if false
-        println("==================")
-        println(join(P, ','))
-        R = Reg(69995476287488, 0, 0)
-        println(run!(R, P))
-        println("==================")
-        return 0
-    end
-
-    R′ = deepcopy(R)
-    A′ = R.A
-    expected = join(P, ',')
-    io = IOBuffer()
-    res = run!(R, P, io)
-    while length(res) < length(expected)
-        copyto!(R, R′)
-        A′ *= 2
-        R.A  = A′
-        res = run!(R, P, io)
-    end
-    println("==================")
-    println(A′)
-    println(expected)
-    println(res)
-    println("==================")
-    0
-end
-
-# part2 = part2bruteforceish
-
-# function part2backwards(R, P)
-# end
-
-# part2 = part2backwards
+# Quite stuck on this one... not entirely sure why this works but I adapted
+# from the following:
+# <https://www.reddit.com/r/adventofcode/comments/1hg38ah/comment/m2glx6y/>
 #
-# Quite stuck on this one... not entirely sure why this works but I adapted from the following
-# https://www.reddit.com/r/adventofcode/comments/1hg38ah/comment/m2glx6y/
-#
-# It seemed like one of the solutions that used the least amount of manual decompiling of the program
-function solve_recursive(R, P, target, io, a=0, depth=0)
-    if depth == length(target)
-        return a
-    end
+# It seemed like one of the solutions that used the least amount of manual
+# decompiling of the program
+function solve_recursive(machine::Machine, target::Vector{Int8}, a::Int = 0, depth::Int = 0)
+    depth == length(target) && return a
+
     for i in 0:7
-        R′ = deepcopy(R)
-        R′.A = 8a + i
-        output = run!(R′, P, io)
-        if !isempty(output) && parse(Int, first(output)) == target[depth + 1]
-            result = solve_recursive(R′, P, target, io, 8a + i, depth + 1)
-            if result != 0
-                return result
-            end
+        # Construct new machine with initial state and modified registry
+        machine = Machine(State(deepcopy(machine.state.reg)), machine.program)
+        machine.state.reg.A = 8a + i
+        run!(machine)
+        isempty(machine.state.out) && continue
+        if first(machine.state.out) == target[depth + 1]
+            result = solve_recursive(machine, target, 8a + i, depth + 1)
+            iszero(result) || return result
         end
     end
+
     return 0
 end
 
-function part2recursive(R, P)
-    target = reverse(P)
-    io = IOBuffer()
-    solve_recursive(deepcopy(R), P, target, io)
+function part2(machine::Machine)
+    target = reverse(machine.program)
+    a = solve_recursive(deepcopy(machine), target)
+
+    # Sanity-check results
+    machine.state.reg.A = a
+    run!(machine)
+    @assert machine.state.out == machine.program
+
+    # Return value for register A
+    return a
 end
 
-part2 = part2recursive
+
+### Main ###
 
 function main()
-    R, P = parse_input("data17.txt")
-    # R, P = parse_input("data17.test.txt")
-    # R, P = parse_input("data17.test2.txt")
+    machine = parse_input("data17.txt")
 
     # Part 1
-    part1_solution = part1(deepcopy(R), P)
-    # @assert part1_solution ==
+    part1_solution = part1(deepcopy(machine))
+    @assert part1_solution == "2,0,4,2,7,0,1,0,3"
     println("Part 1: $part1_solution")
 
     # Part 2
-    part2_solution = part2(deepcopy(R), P)
-    # @assert part2_solution ==
+    part2_solution = part2(deepcopy(machine))
+    @assert part2_solution == 265601188299675
     println("Part 2: $part2_solution")
 end
 
