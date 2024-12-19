@@ -1,154 +1,87 @@
-# easy but slow and recursion hard but necessary
+# Another easy problem today (though I was slow because I started late).  The
+# input consists of two parts: a list of towels by their colour, and a list of
+# target displays.  The goal is to use the first list to construct elements in
+# the second, thereby creating these colourful displys of towels.
+#
+# In part 1, we had to count how many displays are possible to make with our
+# collection of towels.  In part 2, we had to count the number of ways we can
+# make these arrangements.
+#
+# Both parts were a nice, simple exercise of recursion.  The only slight trick
+# is that part 2 is too slow to run in any reasonable time without memoisation.
 
-using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
+
+### Parse Input ###
 
 function parse_input(input_file::String)
-    # M = readlines_into_char_matrix(input_file)
     S = strip(read(input_file, String))
     S1, S2 = split(S, "\n\n")
-    S1′ = split(S1, ", ")
-    S2′ = split(S2, "\n")
+
+    S1′ = String.(split(S1, ", "))
+    S2′ = String.(split(S2, "\n"))
+
     # S1 is towel options, S2 is target displays
     return S1′, S2′
-    # L = strip.(readlines(input_file))
-    # L = get_integers.(L)
-    return L
 end
 
-function can_make_display_slow(target, options)
-    # offset, found
-    Q = Queue{Tuple{Int, Bool}}()
-    for option in options
-        option == target[1:length(option)] || continue
-        found = target == option
-        enqueue!(Q, (length(option) + 1, found))
-    end
-    while !isempty(Q)
-        i, found = dequeue!(Q)
 
-        if found
-            return true
-        end
+### Part 1 ###
 
-        for option in options
-            j = i + length(option) - 1
-            if j ≤ length(target) && target[i:j] == option
-                found = j == length(target)
-                enqueue!(Q, (j + 1, found))
-            end
-        end
-    end
-    return false
-end
-
-function can_make_display(target, options)
+function can_make_display(target::String, options::Vector{String})
     isempty(target) && return true
     return any(options) do option
         length(option) ≤ length(target) || return false
-        option == target[1:length(option)] || return false
+        startswith(target, option) || return false
         return can_make_display(target[(length(option) + 1):end], options)
     end || false
 end
 
-function part1(A, B)
-    sum(enumerate(B)) do (i, target)
-        # println("$i/$(length(B))")
-        can_make_display(target, A)
-    end
-end
+part1(options::Vector{String}, targets::Vector{String}) =
+    sum(can_make_display(target, options) for target in targets)
 
-function number_of_ways_to_make_display_slow(target, options)
-    # target, found, count
-    Q = Queue{String}()
-    n = 0
-    for option in options
-        length(option) ≤ length(target) || continue
-        option == target[1:length(option)] || continue
 
-        n += target == option
-        enqueue!(Q, target[(length(option) + 1):end])
-    end
-    while !isempty(Q)
-        target = dequeue!(Q)
+### Part 2 ###
 
-        if isempty(target)
-            n += 1
-        end
+function ways_to_make_display(
+    target::String,
+    options::Vector{String},
+    mem = Dict{String, Int}(),
+)
+    # Memoisation is required to compute this in any reasonable time
+    haskey(mem, target) && return mem[target]
 
-        for option in options
-            length(option) ≤ length(target) || continue
-            option == target[1:length(option)] || continue
-            enqueue!(Q, target[(length(option) + 1):end])
-        end
-    end
-    return n
-end
-
-DP = Dict()  # dynamic programming/memoisation
-function number_of_ways_to_make_display_wrong(target, options, n = 0)
-    haskey(DP, target) && return DP[target]
-    if isempty(target)
-        return 1
-    end
-    for option in options
-        length(option) ≤ length(target) || continue
-        startswith(target, option) || continue
-        # n += target == option
-        n += number_of_ways_to_make_display_wrong(target[(length(option) + 1):end], options, n)
-    end
-    DP[target] = n
-    return n
-end
-
-DP = Dict()  # dynamic programming/memoisation
-function number_of_ways_to_make_display(target, options)
-    haskey(DP, target) && return DP[target]
-
-    n = 0
-    n += isempty(target)
+    # If the target is empty then we have found a solution
+    n = isempty(target)
 
     for option in options
         length(option) ≤ length(target) || continue
         startswith(target, option) || continue
-        n += number_of_ways_to_make_display(target[(length(option) + 1):end], options)
+        n += ways_to_make_display(target[(length(option) + 1):end], options, mem)
     end
 
-    DP[target] = n
+    mem[target] = n
 
     return n
 end
 
-function part2(A, B)
-    sum(enumerate(B)) do (i, target)
-        println("$i/$(length(B))")
-        number_of_ways_to_make_display(target, A)
-    end
-end
+part2(options::Vector{String}, targets::Vector{String}) =
+    sum(ways_to_make_display(target, options) for target in targets)
+
+
+### Main ###
 
 function main()
-    data = parse_input("data19.txt")
-    # data = parse_input("data19.test.txt")
+    options, targets = parse_input("data19.txt")
 
     # Part 1
-    part1_solution = part1(data...)
-    # @assert part1_solution ==
+    part1_solution = part1(options, targets)
+    @assert part1_solution == 358
     println("Part 1: $part1_solution")
 
     # Part 2
-    part2_solution = part2(data...)
-    # @assert part2_solution ==
+    part2_solution = part2(options, targets)
+    @assert part2_solution == 600639829400603
     println("Part 2: $part2_solution")
 end
 
 main()
-
-
-# NOT 7751713902318070855, too high
