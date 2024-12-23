@@ -2,14 +2,7 @@
 
 julia_version = "1.11.2"
 manifest_format = "2.0"
-project_hash = "e6ba3ac16da9f13e19b83cf0425030b477684bef"
-
-[[deps.AdventOfCode]]
-git-tree-sha1 = "762a00cc190be97c39e32da8d4ba88a3830a26f0"
-repo-rev = "v0.6.3"
-repo-url = "https://github.com/jakewilliami/AdventOfCode.jl"
-uuid = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
-version = "0.6.3"
+project_hash = "28c280795210967a866250a6efcbe46f42575b40"
 
 [[deps.ArnoldiMethod]]
 deps = ["LinearAlgebra", "Random", "StaticArrays"]
