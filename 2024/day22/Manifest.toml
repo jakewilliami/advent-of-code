@@ -2,14 +2,7 @@
 
 julia_version = "1.11.2"
 manifest_format = "2.0"
-project_hash = "bfb3dcc77b007833c8d4efb21c1a7e36ff86840f"
-
-[[deps.AdventOfCode]]
-git-tree-sha1 = "762a00cc190be97c39e32da8d4ba88a3830a26f0"
-repo-rev = "v0.6.3"
-repo-url = "https://github.com/jakewilliami/AdventOfCode.jl"
-uuid = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
-version = "0.6.3"
+project_hash = "5a896dd2d0ff25ca4c1b15e3bcb710a969e917d6"
 
 [[deps.Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
