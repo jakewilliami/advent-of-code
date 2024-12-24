@@ -11,8 +11,11 @@
 # to one another (these are called cliques in graph theory), but we had to find the
 # *largest* clique.  I used a recursive algorithm that took 5 and a half hours to
 # run, but it gave me the right answer.
+#
+# I cleaned up this solution by keeping vertex information inside the graph as vertex
+# labels, using MetaGraphsNext (for the previous solution, see db32057).
 
-using Graphs
+using Graphs, MetaGraphsNext
 
 
 ### Parse Input ###
@@ -28,52 +31,33 @@ end
 
 ### Part 1 ###
 
-# Graphs.jl only supports graphs whose vertices are integers.  To account
-# for this and know what the findings of graph traversal means, we need to
-# know how the computers map to vertices
-function make_vertex_map(C::Vector{Connection})
-    V = Dict{Symbol, Int}()
-    i = 1
-    for c in C
-        for v in c
-            !haskey(V, v) || continue
-            V[v] = i
-            i += 1
-        end
-    end
-    return V
-end
-
 function make_graph(C::Vector{Connection})
-    V = make_vertex_map(C)
+    G = MetaGraph(Graph(), label_type=Symbol, vertex_data_type=Symbol)
 
-    # Create adjacency matrix
-    N = length(V)
-    M = falses(N, N)
     for (a, b) in C
-        i, j = V[a], V[b]
-        M[i, j] = M[j, i] = true
+        add_vertex!(G, a, a)
+        add_vertex!(G, b, b)
+        add_edge!(G, a, b)
     end
 
-    # Create graph from adj matrix
-    return SimpleGraph(M)
+    return G
 end
 
-function find_loops_of_three(G, V)
+function find_loops_of_three(G::MetaGraph)
     loops = Set{Set{Symbol}}()
 
-    for v in vertices(G)
-        neighbours = neighbors(G, v)
+    for v in labels(G)
+        neighbours = collect(neighbor_labels(G, v))
 
         # We have a clique of 3 if we find two neighbours of v who are
         # also connected
         for i in 1:length(neighbours)
             for j in (i + 1):length(neighbours)
                 a, b = neighbours[i], neighbours[j]
-                has_edge(G, a, b) || continue
+                haskey(G, a, b) || continue
 
                 # Must start with t
-                t = (V[v], V[a], V[b])
+                t = (v, a, b)
                 any(x -> startswith(String(x), 't'), t) || continue
                 push!(loops, Set(t))
             end
@@ -85,18 +69,21 @@ end
 
 function part1(data::Vector{Connection})
     G = make_graph(data)
-    V = Dict{Int, Symbol}(reverse(p) for p in make_vertex_map(data))
-    return length(find_loops_of_three(G, V))
+    return length(find_loops_of_three(G))
 end
 
 
 ### Part 2 ###
 
+# The `clique_percolation` function from Graphs.jl returns codes for each vertex that
+# is part of the cliques, but the password algorithm requires their labels (which are
+# symbols), so we have to get their labels from their codes.
+password(G::MetaGraph, V::BitSet) =
+    password(Set{Symbol}(label_for(G, i) for i in V))
 password(V::Set{Symbol}) = join(sort(String.(V)), ',')
 
 function part2(data::Vector{Connection})
     G = make_graph(data)
-    V = Dict{Int, Symbol}(reverse(p) for p in make_vertex_map(data))
 
     # Find the maximal clique (a subset of vertices in the graph that are all
     # connected to each other) by looking for k-cliques (using the clique percolation
@@ -109,7 +96,7 @@ function part2(data::Vector{Connection})
     while true
         C = clique_percolation(G, k = k)
         if length(C) == 1 && isempty(clique_percolation(G, k = k + 1))
-            return password(Set{Symbol}(V[i] for i in only(C)))
+            return password(G, only(C))
         end
         k += 1
     end
