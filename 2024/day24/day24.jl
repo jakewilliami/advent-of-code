@@ -134,6 +134,13 @@ function part1(data)
     solve!(copy(V), gates)
 end
 
+function solved(V, gates)
+    x = solve!(copy(V), copy(gates), 'x')
+    y = solve!(copy(V), copy(gates), 'y')
+    z = solve!(copy(V), copy(gates), 'z')
+    x + y == z
+end
+
 function part2(data)
     V, gates = data
     solved(V, gates)

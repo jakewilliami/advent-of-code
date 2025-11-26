@@ -307,10 +307,242 @@ function part1(data)
     solve(data, si, ei)
 end
 
+struct Cheat2
+    start::Index
+    stop::Index
+    len::Int
+end
+
+# find all indices that have a walking distance of n or less from si
+function find_indices_in_n_of_i(M, si, n)
+    Q = Queue{Tuple{Index, Int}}()
+    # S = Set{Tuple{Index, Int}}()
+    S = Set{Index}()
+    A = Set{Tuple{Index, Int}}()
+    enqueue!(Q, (si, 0))
+    while !isempty(Q)
+        i, s = dequeue!(Q)
+        s ≤ n || continue
+
+        # (i, s) ∈ S && continue
+        # push!(S, (i, s))
+        i ∈ S && continue
+        push!(S, i)
+        # bizzare bug here where i discounted some by returning seen rather than some answer
+        push!(A, (i, s))
+
+        for d in cardinal_directions(2)
+            j = i + d
+            hasindex(M, j) || continue
+            enqueue!(Q, (j, s + 1))
+        end
+    end
+    # delete!(S, (si, 0))
+    A
+end
+
+# we can essentially teleport/wormhole if we know there's a valid path where the end is not a wall
+function find_cheats2(M, si, P)
+    @assert si ∈ P
+    C = Set{Cheat2}()
+    for (i, n) in find_indices_in_n_of_i(M, si, 20)
+        hasindex(M, i) || continue
+        M[i] != '#' || continue
+        # make sure end is in the path somewhere
+        i ∈ P || continue
+        # make sure end is in the path after the start
+        j, k = findfirst(==(si), P), findfirst(==(i), P)
+        @assert !isnothing(j)
+        @assert !isnothing(k)
+        j < k || continue
+        push!(C, Cheat2(si, i, n))
+    end
+    return C
+end
+
+function solve2(M, si, ei)
+    # index, move number, cheat, cheat count
+    Q = Queue{Tuple{Index, Int, Cheat2}}()
+    S = Set{Tuple{Index, Index, Index}}()
+    S′ = Set{Index}()
+    save = 100
+    println("collecting cheat paths")
+
+    # Initialise queue with cheat options
+    P = find_path(M, si, ei)
+    N = length(P)
+    C = Set()
+    for p in P
+        for c in find_cheats2(M, p, P)
+            if (c.start, c.stop) ∉ C
+                enqueue!(Q, (si, 1, c))
+                push!(C, (c.start, c.stop))
+            end
+        end
+    end
+    println("found $(length(C)) cheats from $(N) path")
+    println("solving while saving $save on grid $(size(M))")
+
+    # A = Dict{Cheat, Int}()
+    A = []
+    iterations = 0
+    while !isempty(Q)
+        # log iterations
+        if (iterations % 50_000_000) == 0
+            println("queue length =", length(Q))
+            iterations = 0
+        end
+        iterations += 1
+
+        i, s, c = dequeue!(Q)
+
+        # s < N - save || continue
+        # s >= N - save && continue
+
+        # avoid visiting the same state
+        if (i, c.start, c.stop) ∈ S
+            continue
+        end
+        push!(S, (i, c.start, c.stop))
+        # if i ∈ S′
+            # continue
+        # end
+        # push!(S′, i)
+
+        # found an answer
+        if i == ei
+            # A[Cheat(c.start, c.stop)] = s
+            # s <= N - save || continue
+            push!(A, s)
+        end
+
+        # only explore cheats that save time
+        # s ≤ N - save || continue
+        if i == c.stop
+            # distances[i] <= N - save - (s - c.len) || continue
+            dist_to_finish = N - distances[i]
+            time_saved = distances[i] - s
+            # time_saved >= save || continue
+
+        end
+        # s ≤ N - save
+         # ≥ save || continue
+
+        #=for d in cardinal_directions(2)
+            j = i + d
+            hasindex(M, j) || continue
+            if j == c.start
+                enqueue!(Q, (c.stop, s + c.len + 1, c))
+            end
+            if M[j] != '#'
+                enqueue!(Q, (j, s + 1, c))
+            end
+        end=#
+
+        # If we are at the start of a cheat, one option is to go down that route
+        if i == c.start
+            # only explore cheats that save time
+            new_path_time = s + c.len - 1 + distances[c.stop]
+            if new_path_time ≥ (N - 100)
+                enqueue!(Q, (c.stop, s + c.len, c))
+            end
+        end
+
+        # Alternatively, look for other paths to take
+        for d in cardinal_directions(2)
+            j = i + d
+            if hasindex(M, j) && M[j] != '#'
+                enqueue!(Q, (j, s + 1, c))
+            end
+        end
+    end
+
+    # println("shortest path: ", N - A[Cheat(Index(8, 11), Index(8, 12))])
+
+    # println([(N - s, s) for s in A])
+    # savings = [N - s for s in values(A) if (N - s) ≥ 50]
+    savings = [N - s for s in A if (N - s) ≥ save]
+    D = countmap(savings)
+    # map(println, sort(collect(D), by = x -> x[1], rev = false)); return
+    sum(D) do (s, n)
+        s ≥ save ? n : 0
+    end
+end
+
+function solve3(M, si, ei)
+    T = 20
+    P = find_path(M, si, ei)
+    N = length(P)
+    A = Set()
+    Q = Queue{Tuple{Any, Any, Any, Any, Any}}()
+    S = Set()
+    enqueue!(Q, (0, nothing, nothing, nothing, si))
+    while !isempty(Q)
+        s, cs, ce, ct, i = dequeue!(Q)
+        # println("s=$s, cs=$cs, ce=$ce, ct=$ct, i=$i")
+
+        # @assert isnothing(ce)
+
+        # println("$s, $(N), $(N - 100), $(s ≥ N - 100)")
+        # if s ≥ N - 100
+            # continue
+        # end
+        # println("here")
+
+        if i == ei
+            ce = isnothing(ce) ? i : ce
+            if s ≤ N - 100 && CartesianIndex(cs, ce) ∉ A
+                push!(A, (CartesianIndex(cs, ce), s))
+            end
+        end
+
+        if (i, cs, ce, ct) ∈ S
+            continue
+        end
+        push!(S, (i, cs, ce, ct))
+
+        if isnothing(cs)
+            @assert M[i] != '#'
+            enqueue!(Q, (s, i, nothing, T, i))
+        end
+
+        if !isnothing(ct) && M[i] != '#'
+            @assert M[i] ∈ ".SE"
+            push!(A, (cs, i, s))
+        end
+
+        if !isnothing(ct) && iszero(ct)
+            continue
+        else
+            for d in cardinal_directions(2)
+                j = i + d
+                if !isnothing(ct)
+                    @assert ct > 0
+                    hasindex(M, j) || continue
+                    enqueue!(Q, (s + 1, cs, nothing, ct - 1, j))
+                else
+                    hasindex(M, j) || continue
+                    M[j] != '#' || continue
+                    enqueue!(Q, (s + 1, cs, ce, ct, j))
+                end
+            end
+        end
+    end
+
+    savings = [N - s for s in last.(A) if s ≥ 50]
+    D = countmap(savings)
+    haskey(D, 0) && pop!(D, 0)
+    map(println, sort(collect(D), by = x -> x[1], rev = true))
+    return
+
+    # println(A)
+    length(A)
+end
+
 function part2(data)
     si, ei = find_start(data), find_end(data)
     # this is very slow
-    solve(data, si, ei)
+    solve2(data, si, ei)
 end
 
 function main()
