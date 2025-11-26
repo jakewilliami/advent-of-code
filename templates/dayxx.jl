@@ -1,3 +1,4 @@
+#  ]add ~/projects/AdventOfCode Statistics LinearAlgebra Combinatorics DataStructures StatsBase IntervalSets OrderedCollections
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
 # using Base.Iterators
 # using Statistics
