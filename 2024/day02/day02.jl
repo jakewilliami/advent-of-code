@@ -17,6 +17,9 @@ end
 # is "safe" if the levels either gradually increase or decrease; that is
 # increase or decrease in not-too-large increments.
 function is_safe(v::Vector{Int})
+    # Function to check all consecutive pairs of a list match some
+    # condition, or operation, `op`.  `op` takes two arguments and
+    # and returns a boolean.
     function all_op(v::Vector{Int}, op)
         all(2:length(v)) do i
             op(v[i - 1], v[i])
@@ -28,10 +31,9 @@ function is_safe(v::Vector{Int})
     # same as the original list.
     all_op(v, <) || all_op(v, >) || return false
 
-    # Then, confirm that the increments or decrements are not too large.
-    return all(2:length(v)) do i
-        1 <= abs(v[i - 1] - v[i]) <= 3
-    end
+    # Then, confirm that the increments or decrements are not too large;
+    # i.e., distance between each "level" is at least 1 and at most 3.
+    return all_op(v, (a, b) -> (abs(a - b) ∈ 1:3))
 end
 
 part1(data) = sum(is_safe(v) for v in data)
