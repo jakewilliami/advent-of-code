@@ -1,14 +1,13 @@
 use reqwest::{header::HeaderMap, Client};
 
-// const BASE_URI: &str = "https://adventofcode.com/2022/leaderboard/private/view/";
-const BASE_URI: &str = "https://adventofcode.com/2022/leaderboard/self";
-
 pub async fn pull_leaderboard_data(
     leaderboard_id: String,
     session_cookie: String,
+    year: String,
 ) -> serde_json::Map<String, serde_json::Value> {
     // Construct URI
-    let url = format!("{}", BASE_URI);
+    // let url = format!("https://adventofcode.com/{}/leaderboard/private/view/", &year);
+    let url = format!("https://adventofcode.com/{}/leaderboard/self", &year);
 
     // Set session cookie
     let mut headers = HeaderMap::new();

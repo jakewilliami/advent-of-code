@@ -47,13 +47,13 @@ fn extract_stats_from_str(stats: String) -> HashMap<usize, DayStats> {
         let parts = DayStats {
             date: Date {
                 day,
-                year: AOC_YEAR,
+                year: *AOC_YEAR,
             },
             parts: [
                 DayPartStats {
                     date: Date {
                         day,
-                        year: AOC_YEAR,
+                        year: *AOC_YEAR,
                     },
                     part: 1,
                     time: time1,
@@ -63,7 +63,7 @@ fn extract_stats_from_str(stats: String) -> HashMap<usize, DayStats> {
                 DayPartStats {
                     date: Date {
                         day,
-                        year: AOC_YEAR,
+                        year: *AOC_YEAR,
                     },
                     part: 2,
                     time: time2,

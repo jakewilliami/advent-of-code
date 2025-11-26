@@ -8,10 +8,20 @@ mod parse;
 mod request;
 mod stats;
 
+use chrono::prelude::*;
 use dotenv::dotenv;
+use lazy_static;
 use std::env;
 
-const AOC_YEAR: usize = 2021;
+lazy_static::lazy_static! {
+    pub static ref AOC_YEAR: usize = {
+        let year_current = Utc::now().year().to_string();
+        let year_str = env::var("YEAR").unwrap_or(year_current);
+        year_str
+            .parse::<usize>()
+            .expect("Could not parse YEAR as an integer")
+    };
+}
 
 #[tokio::main]
 async fn main() {

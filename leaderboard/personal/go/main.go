@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-const AOC_YEAR int = 2022
+var AOC_YEAR = GetYear()
 
 func main() {
 	sessionCookie := GetSessionCookie()

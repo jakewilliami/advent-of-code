@@ -19,8 +19,9 @@ async fn main() {
         env::var("LEADERBOARD_ID").expect("Could not find \"LEADERBOARD_ID\" in .env");
     let session_cookie =
         env::var("SESSION_COOKIE").expect("Could not find \"SESSION_COOKIE\" in .env");
+    let year = env::var("YEAR").expect("Could not find \"YEAR\" in .env");
 
-    let res = pull_leaderboard_data(leaderboard_id, session_cookie).await;
+    let res = pull_leaderboard_data(leaderboard_id, session_cookie, year).await;
     println!("{:?}", res);
     return;
     let user_stats = parse_user_stats(res);

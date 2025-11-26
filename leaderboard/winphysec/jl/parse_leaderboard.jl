@@ -9,6 +9,11 @@ using JSON
 # Usage:
 #   julia --project=. parse_leaderboard.jl --day=1
 
+# Set year
+DotEnv.load!()
+const LEADERBOARD_ID, SESSION_COOKIE = ENV["LEADERBOARD_ID"], ENV["SESSION_COOKIE"]
+const YEAR = haskey(ENV, "YEAR") ? parse(Int, ENV["YEAR"]) : Year(today()).value
+
 
 # Statistics structs
 
@@ -46,7 +51,7 @@ UserStats(name::String) = UserStats(name, DayStats[], 0)
 # Helper functions
 
 function get_seconds_since_day_start(dᵢ::Int, ts::Int)
-    d = DateTime(2022, 12, dᵢ) + Hour(5)  # Account for EST/UTC–5
+    d = DateTime(YEAR, 12, dᵢ) + Hour(5)  # Account for EST/UTC–5
     return (ts - datetime2unix(d))
 end
 
@@ -96,7 +101,8 @@ end
 # Pull data
 
 function pull_leaderboard_data(leaderboard_id::String, session_cookie::String)
-    uri = "https://adventofcode.com/2022/leaderboard/private/view/$(leaderboard_id).json"
+
+    uri = "https://adventofcode.com/$(YEAR)/leaderboard/private/view/$(leaderboard_id).json"
     cookies = Dict{String, String}("session" => session_cookie)
     r = HTTP.get(uri, cookies = cookies)
     return JSON.parse(String(r.body))
@@ -156,8 +162,7 @@ end
 
 function main()
     # Pull leaderboard statistics
-    DotEnv.load!()
-    json_data = pull_leaderboard_data(ENV["LEADERBOARD_ID"], ENV["SESSION_COOKIE"])
+    json_data = pull_leaderboard_data(LEADERBOARD_ID, SESSION_COOKIE)
 
     # Parse statistics
     stats = parse_user_stats(json_data)

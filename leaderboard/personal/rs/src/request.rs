@@ -3,7 +3,7 @@ use reqwest::{header::HeaderMap, Client};
 
 pub async fn pull_personal_stats(session_cookie: String) -> String {
     // Construct URI
-    let url = format!("https://adventofcode.com/{}/leaderboard/self", AOC_YEAR);
+    let url = format!("https://adventofcode.com/{}/leaderboard/self", *AOC_YEAR);
 
     // Set session cookie
     let mut headers = HeaderMap::new();

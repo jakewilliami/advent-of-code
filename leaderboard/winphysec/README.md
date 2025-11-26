@@ -6,7 +6,7 @@ Required environment variables: `LEADERBOARD_ID` and `SESSION_COOKIE`.
 
 > [!CAUTION]
 >
-> Year is currently hard coded; this should be changed in future to allow specification with user input.
+> Year is currently hard coded; make sure you specify it in your environment variables.
 
 ## Quick Start
 
