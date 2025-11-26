@@ -105,7 +105,7 @@ end
 
 # Parse function
 
-function parse_user_stats(json_data::Dict{String, Any})
+function parse_user_stats(json_data::AbstractDict{String, Any})
     # Initialise results
     user_stats = UserStats[]
 
@@ -156,7 +156,7 @@ end
 
 function main()
     # Pull leaderboard statistics
-    DotEnv.config()
+    DotEnv.load!()
     json_data = pull_leaderboard_data(ENV["LEADERBOARD_ID"], ENV["SESSION_COOKIE"])
 
     # Parse statistics
