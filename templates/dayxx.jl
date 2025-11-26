@@ -1,4 +1,4 @@
-#  ]add ~/projects/AdventOfCode Statistics LinearAlgebra Combinatorics DataStructures StatsBase IntervalSets OrderedCollections
+#  ]add ~/projects/AdventOfCode Statistics LinearAlgebra Combinatorics DataStructures StatsBase IntervalSets OrderedCollections MultidimensionalTools
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
 # using Base.Iterators
 # using Statistics
@@ -8,6 +8,7 @@ using AdventOfCode.Parsing, AdventOfCode.Multidimensional
 # using StatsBase
 # using IntervalSets
 # using OrderedCollections
+# using MultidimensionalTools
 
 function parse_input(input_file::String)
     # M = readlines_into_char_matrix(input_file)
