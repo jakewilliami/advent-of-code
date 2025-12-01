@@ -69,8 +69,8 @@ function part1(data::Vector{Instruction})
     state = State()
 
     for inst in data
-        state.counter += iszero(state.position)
         state.position = mod(state.position + prod(inst), state.max_n)
+        state.counter += iszero(state.position)
     end
 
     return state.counter
@@ -85,8 +85,8 @@ function part2(data::Vector{Instruction})
     for inst in data
         i = 0
         while i < inst.n
-            state.counter += iszero(state.position)
             state.position = mod(state.position + Int(inst.d), state.max_n)
+            state.counter += iszero(state.position)
             i += 1
         end
     end
@@ -99,7 +99,6 @@ end
 
 function main()
     data = parse_input("data01.txt")
-    # data = parse_input("data01.test.txt")
 
     # Part 1
     part1_solution = part1(data)
