@@ -18,6 +18,9 @@
 # so then I refactored it into a naïve solution but I had some old code in the loop
 # that was erroneously counting up some of the time, so the answer was only off by
 # a small number.  Despite the poor performance, it was fun.
+#
+# After the intial solution (01c231c), I added models to help solve the problem
+# (2f64a2d), but part 2 is still naïvely solved.
 
 
 ### Parse Input ###
