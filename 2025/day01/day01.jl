@@ -22,44 +22,73 @@
 
 ### Parse Input ###
 
+@enum Direction begin
+    left = -1
+    right = 1
+end
+
+Base.parse(::Type{Direction}, c::Char) =
+    c == 'L' ? left  :
+    c == 'R' ? right :
+    throw(ArgumentError("Invalid direction char: $c"))
+
+struct Instruction
+    d::Direction  # Direction of rotation
+    n::Int        # Number of notches to rotate the dial
+end
+
+function Base.parse(::Type{Instruction}, input::AbstractString)
+    d = parse(Direction, input[1])
+    n = parse(Int, input[2:end])
+    return Instruction(d, n)
+end
+
 function parse_input(input_file::String)
     L = strip.(readlines(input_file))
-    return Tuple{Char, Int}[(x[1], parse(Int, x[2:end])) for x in L]
+    return Instruction[parse(Instruction, x) for x in L]
 end
 
 
 ### Part 1 ###
 
-function part1(data::Vector{Tuple{Char, Int}})
-    dial, res = 50, 0
-    modifiers = Dict{Char, Int}('L' => -1, 'R' => 1)
+mutable struct State
+    position::Int  # Position of the dial
+    max_n::Int     # Number of notches on the dial
+    counter::Int   # Counter for puzzle answer
+end
 
-    for (d, n) in data
-        res += iszero(dial)
-        modifier = modifiers[d]
-        dial = mod(dial + n * modifier, 100)
+State() = State(50, 100, 0)  # Default configuration
+
+# Prod on Instruction gives the distance _and_ direction
+Base.prod(inst::Instruction) = Int(inst.d) * inst.n
+
+function part1(data::Vector{Instruction})
+    state = State()
+
+    for inst in data
+        state.counter += iszero(state.position)
+        state.position = mod(state.position + prod(inst), state.max_n)
     end
 
-    return res
+    return state.counter
 end
 
 
 ### Part 2 ###
 
-function part2(data::Vector{Tuple{Char, Int}})
-    dial, res = 50, 0
-    modifiers = Dict{Char, Int}('L' => -1, 'R' => 1)
+function part2(data::Vector{Instruction})
+    state = State()
 
-    for (d, n) in data
-        modifier = modifiers[d]
+    for inst in data
         i = 0
-        while i < n
-            dial = mod(dial + modifier, 100)
-            res += iszero(dial)
+        while i < inst.n
+            state.counter += iszero(state.position)
+            state.position = mod(state.position + Int(inst.d), state.max_n)
             i += 1
         end
     end
-    return res
+
+    return state.counter
 end
 
 
@@ -67,10 +96,11 @@ end
 
 function main()
     data = parse_input("data01.txt")
+    # data = parse_input("data01.test.txt")
 
     # Part 1
     part1_solution = part1(data)
-    @assert part1_solution == 1118
+    @assert part1_solution == 1118 part1_solution
     println("Part 1: $part1_solution")
 
     # Part 2
