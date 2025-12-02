@@ -1,35 +1,71 @@
-# Description: what was the problem; how did I solve it; and (optionally)
-# any thoughts on the problem or how I did.
-
-#  ]add ~/projects/AdventOfCode.jl Statistics LinearAlgebra Combinatorics DataStructures StatsBase IntervalSets OrderedCollections MultidimensionalTools
-# using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-# using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
-# using MultidimensionalTools
+# We are given a comma-separated list of unit ranges.  Each integer in these
+# ranges are IDs.  In part 1, we are asked to find the IDs in each range that
+# are made up of two repeating numbers (e.g., 11, 1212, 123123).  In part 2,
+# we have to find the IDs in each range that are made up of two or more repeat-
+# ing numbers (e.g., 11, 1212, 121212, 999, 565656).
+#
+# I had to start this day late as I was out with my brother, but after I started
+# the first part, I solve it in about 10–15 minutes.  I started implementing it
+# as I would implement part 2, because I didn't realise part 1 was as simple as
+# it was.  Because I had already basically (accidentally) implemented part 2 in
+# part 1, it only took 3 more minutes.
+#
+# Conveniently, I have some code that I...took inspiration from, in order to find
+# repeating substrings in strings.  This is from LinearShiftRegisters.jl.
+#
+# Overall, quite a simple day, and more happy with it than yesterday (even though,
+# on paper, because I was delayed to start, I didn't do as well.  But no global
+# leaderboard this year so who cares!).
 
 
 ### Parse Input ###
 
 function parse_input(input_file::String)
-    # M = readlines_into_char_matrix(input_file)
-    # S = strip(read(input_file, String))
-    L = only(string.(strip.(readlines(input_file))))
-    A = string.(split(L, ','))
-    R = [parse.(Int, split(l, '-')) for l in A]
-    Q = [a:b for (a, b) in R]
-    return Q
-    # L = get_integers.(L)
-    return L
+    S = readchomp(input_file)
+    P = split(S, ',')
+    Q = Tuple{Int, Int}[parse.(Int, Tuple(split(p, '-'))) for p in P]
+    R = UnitRange{Int}[a:b for (a, b) in Q]
+    return R
 end
 
 
 ### Part 1 ###
+
+function halve(s::String)
+    # Cannot split string in half if its length is odd
+    isodd(length(s)) && return nothing
+
+    mid = length(s) ÷ 2
+    return s[1:mid], s[mid + 1:end]
+end
+
+function is_invalid₁(id::Int)
+    s = halve(string(id))
+    isnothing(s) && return false
+
+    # If both halves are the same then the ID is invalid, as we have to
+    # check that the _whole_ string is repeating:
+    #
+    #   "any ID which is made only of some sequence of digits repeated twice"
+    a, b = s
+    return a == b
+end
+
+function sum_invalids(data::Vector{UnitRange{Int}}, predicate)
+    # For each unit range, check each ID in the range
+    return sum(data) do rng
+        sum(rng) do id
+            # If the ID matches a predicate, add that ID to the
+            # resulting sum
+            predicate(id) ? id : 0
+        end
+    end
+end
+
+part1(data::Vector{UnitRange{Int}}) = sum_invalids(data, is_invalid₁)
+
+
+### Part 2 ###
 
 # Stolen:
 #   github.com/jakewilliami/LinearShiftRegisters.jl/blob/c2c24a9d/src/LinearShiftRegisters.jl#L5-L31
@@ -61,109 +97,34 @@ function _repeated_substring(source)
     return nothing
 end
 
-function is_valid_num(n::Int)
-    s = string(n)
+function is_invalid₂(id::Int)
+    s = string(id)
     r = _repeated_substring(s)
-    if isnothing(r)
-        return true
-    end
+    isnothing(r) && return false
 
-    if count(r, s) != 2
-        return true
-    end
-
-    # strip leading zeros # no it doesn't
-    # if isodd(ndigits(parse(Int, r)))
-        # return true
-    # end
-
-    return false
+    # Here we find repeated substrings in the string which can be repeated
+    # two times or more.
+    #
+    #   "made only of some sequence of digits repeated at least twice"
+    return count(r, s) >= 2
 end
 
-function split_string_in_half(s::String)
-    if isodd(length(s))
-        return nothing ## cannot split in half
-    end
-    return string(s[1:length(s)÷2]), string(s[length(s)÷2+1:end])
-end
-
-function is_valid_2(n::Int)
-    s = string(n)
-    r = split_string_in_half(s)
-
-    if isnothing(r)
-        return true
-    end
-
-    a, b = r
-    if a == b
-        return false
-    end
-
-    return true
-end
-
-function part1(data)
-    res = 0
-    for rng in data
-        for n in rng
-            if !is_valid_2(n)
-                # println(n)
-                res += n
-            end
-        end
-    end
-    return res
-end
-
-
-### Part 2 ###
-
-function is_valid_3(n::Int)
-    s = string(n)
-    r = _repeated_substring(s)
-    if isnothing(r)
-        return true
-    end
-
-    if count(r, s) >= 2
-        return false
-    end
-
-    return true
-end
-
-function part2(data)
-    res = 0
-    for rng in data
-        for n in rng
-            if !is_valid_3(n)
-                # println(n)
-                res += n
-            end
-        end
-    end
-    return res
-end
+part2(data::Vector{UnitRange{Int}}) = sum_invalids(data, is_invalid₂)
 
 
 ### Main ###
 
 function main()
     data = parse_input("data02.txt")
-    # data = parse_input("data02.test.txt")
-    # println(data)
 
     # Part 1
     part1_solution = part1(data)
-    # @assert part1_solution == 23560874270 # done in about 15--20 mins
-    # 23388708624 too low
+    @assert part1_solution == 23560874270
     println("Part 1: $part1_solution")
 
     # Part 2
     part2_solution = part2(data)
-    # @assert part2_solution ==
-    # did this one 3 minutes later because of the code I stole from an earlier project
+    @assert part2_solution == 44143124633
     println("Part 2: $part2_solution")
 end
 
