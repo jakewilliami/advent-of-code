@@ -1,80 +1,87 @@
-# Description: what was the problem; how did I solve it; and (optionally)
-# any thoughts on the problem or how I did.
+# Simple problem today.  We were given a grid of either toilet paper rolls ('@')
+# or empty space ('.').  We have a forklift and we are to find accessible toilet
+# paper tolls.  A roll of toilet paper is accessible if it is surrounded by less
+# than four other toilet paper rolls.
+#
+# In part 1, we are simply asked to count the number of immediately accessible
+# toilet paper rolls.  In part 2, we had to keep removing the accessible rolls
+# until there were none left (and count how many were removed all together).
+#
+# Today's problem was simple so I did it quite fast.  It helped that I had my
+# library to help with these kinds of problems (though I always forget the API
+# of my own library year by year).
 
-#  ]add ~/projects/AdventOfCode.jl Statistics LinearAlgebra Combinatorics DataStructures StatsBase IntervalSets OrderedCollections MultidimensionalTools
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-using Base.Iterators
-using Statistics
-using LinearAlgebra
-using Combinatorics
-using DataStructures
-using StatsBase
-using IntervalSets
-using OrderedCollections
-using MultidimensionalTools
 
 
 ### Parse Input ###
 
-function parse_input(input_file::String)
-    M = readlines_into_char_matrix(input_file)
-    return M
-    # S = strip(read(input_file, String))
-    # L = string.(strip.(readlines(input_file)))
-    # L = get_integers.(L)
-    return L
-end
+parse_input(input_file::String) = readlines_into_char_matrix(input_file)
 
 
 ### Part 1 ###
 
-function part1(data)
-    a = 0
-    for i in CartesianIndices(data)
-        data[i] == '@' || continue
-        b = 0
-        for d in cartesian_directions(2)
-            x = Multidimensional.tryindex(data, i + d)
-            b += x == '@'
+function part1(data::Matrix{Char})
+    # Iterate over the indices of the matrix, and for each toilet paper roll,
+    # count the number of toilet paper rolls that are not surrounded by too
+    # many other toilet paper rolls.
+    return sum(CartesianIndices(data)) do i
+        data[i] == '@' || return 0
+
+        # Count the number of adjacent rolls of toilet paper
+        n = sum(cartesian_directions(2)) do d
+            j = i + d
+            return hasindex(data, j) && data[j] == '@'
         end
-        if b < 4
-            a += 1
-        end
+
+        # Any more than four adjacent toilet paper rolls and we don't care
+        return n < 4
     end
-    return a
 end
 
 
 ### Part 2 ###
-function something!(data)
-    a = 0
-    Is = []
-    for i in CartesianIndices(data)
-        data[i] == '@' || continue
-        b = 0
-        for d in cartesian_directions(2)
-            x = Multidimensional.tryindex(data, i + d)
-            b += x == '@'
+
+function take_accessible_rolls!(M::Matrix{Char})
+    # Find all of the accessible rolls of toilet paper (see part 1) and take
+    # them out of the matrix.
+    indices_to_remove = CartesianIndex[]
+
+    n_removed = sum(CartesianIndices(M)) do i
+        M[i] == '@' || return 0
+
+        # Count the number of adjacent rolls of toilet paper
+        n = sum(cartesian_directions(2)) do d
+            j = i + d
+            return hasindex(M, j) && M[j] == '@'
         end
-        if b < 4
-            push!(Is, i)
-            a += 1
+
+        # Any more than four adjacent toilet paper rolls and we don't care
+        if n < 4
+            push!(indices_to_remove, i)
+            return 1
         end
+
+        return 0
     end
-    for i in Is
-        data[i] = '.'
+
+    # Modify the array to remove the rolls that we have dealt with
+    for i in indices_to_remove
+        M[i] = '.'
     end
-    return a
+
+    return n_removed
 end
 
-function part2(data)
-    data = deepcopy(data)
-    prev_state = deepcopy(data)
-    r = something!(data)
+function part2(data::Matrix{Char})
+    # Keep taking the rolls that are accessible until the state stops changing;
+    # basic iterative process.
+    prev_state, r = deepcopy(data), take_accessible_rolls!(data)
     while data != prev_state
         prev_state = deepcopy(data)
-        r += something!(data)
+        r += take_accessible_rolls!(data)
     end
+
     return r
 end
 
@@ -83,8 +90,6 @@ end
 
 function main()
     data = parse_input("data04.txt")
-    # data = parse_input("data04.test.txt")
-    # println(data)
 
     # Part 1
     part1_solution = part1(data)
