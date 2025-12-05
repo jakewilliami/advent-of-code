@@ -1,11 +1,11 @@
-# Simple problem today.  We were given a grid of either toilet paper rolls ('@')
-# or empty space ('.').  We have a forklift and we are to find accessible toilet
-# paper tolls.  A roll of toilet paper is accessible if it is surrounded by less
-# than four other toilet paper rolls.
+# Simple problem today.  We were given a grid of either rolls of paper ('@') or
+# empty space ('.').  We have a forklift and we are to find accessible rolls of
+# paper.  A roll of paper is accessible if it is surrounded by less than four other
+# rolls of paper.
 #
 # In part 1, we are simply asked to count the number of immediately accessible
-# toilet paper rolls.  In part 2, we had to keep removing the accessible rolls
-# until there were none left (and count how many were removed all together).
+# rolls.  In part 2, we had to keep removing the accessible rolls until there
+# were none left (and count how many were removed all together).
 #
 # Today's problem was simple so I did it quite fast.  It helped that I had my
 # library to help with these kinds of problems (though I always forget the API
@@ -22,19 +22,19 @@ parse_input(input_file::String) = readlines_into_char_matrix(input_file)
 ### Part 1 ###
 
 function part1(data::Matrix{Char})
-    # Iterate over the indices of the matrix, and for each toilet paper roll,
-    # count the number of toilet paper rolls that are not surrounded by too
-    # many other toilet paper rolls.
+    # Iterate over the indices of the matrix, and for each roll of paper,
+    # count the number of rolls that are not surrounded by too many other
+    # rolls.
     return sum(CartesianIndices(data)) do i
         data[i] == '@' || return 0
 
-        # Count the number of adjacent rolls of toilet paper
+        # Count the number of adjacent rolls of paper
         n = sum(cartesian_directions(2)) do d
             j = i + d
             return hasindex(data, j) && data[j] == '@'
         end
 
-        # Any more than four adjacent toilet paper rolls and we don't care
+        # Any more than four adjacent rolls of paper and we don't care
         return n < 4
     end
 end
@@ -43,20 +43,20 @@ end
 ### Part 2 ###
 
 function take_accessible_rolls!(M::Matrix{Char})
-    # Find all of the accessible rolls of toilet paper (see part 1) and take
-    # them out of the matrix.
+    # Find all of the accessible rolls of paper (see part 1) and take them
+    # out of the matrix.
     indices_to_remove = CartesianIndex[]
 
     n_removed = sum(CartesianIndices(M)) do i
         M[i] == '@' || return 0
 
-        # Count the number of adjacent rolls of toilet paper
+        # Count the number of adjacent rolls of paper
         n = sum(cartesian_directions(2)) do d
             j = i + d
             return hasindex(M, j) && M[j] == '@'
         end
 
-        # Any more than four adjacent toilet paper rolls and we don't care
+        # Any more than four adjacent rolls of paper and we don't care
         if n < 4
             push!(indices_to_remove, i)
             return 1
