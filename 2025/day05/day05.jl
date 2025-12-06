@@ -20,12 +20,12 @@
 # My first intuition was simple: first, we implement a function to check if two ranges
 # can be joined into one (I would call these contiguous [1]).  Then, for each pair, we
 # can join the ranges that can be joined, and continue this process until the list of
-# ranges were maximally simplified [2].  I _think_ this would have worked.  It worked
+# ranges were maximally simplified [2, 3].  I _think_ this would have worked.  It worked
 # on the test data, but it was incredibly slow on the large input and never finished
 # running.  (At least _I_ know that I implemented it myself.)
 #
 # After going back to the drawing board, I found a whole list of algorithms on Rosetta
-# code for exactly this problem.  I adapted the algorithm for Julia [3], which itself
+# code for exactly this problem.  I adapted the algorithm for Julia [4], which itself
 # was adapted for the Python algorithm.  I made it more "Julian," using unit ranges
 # instead of pairs.
 #
@@ -34,9 +34,13 @@
 # sort!(::Vector{UnitRange{Int}}) was _incredibly_ slow.  It was sufficient to just sort
 # by the start of each range.
 #
+# JP as usual has a cool solution to find the size of the union of all ranges: [5].
+#
 # [1]: github.com/jakewilliami/advent-of-code/blob/173209b2/2025/day05/day05.jl#L55-L71
 # [2]: github.com/jakewilliami/advent-of-code/blob/173209b2/2025/day05/day05.jl#L93-L108
-# [3]: rosettacode.org/wiki/Range_consolidation#Julia
+# [3]: reddit.com/r/adventofcode/comments/1pf799n/comment/nshvqxv
+# [4]: rosettacode.org/wiki/Range_consolidation#Julia
+# [5]: github.com/jonathanpaulson/AdventOfCode/blob/16e28057/2025/5.py#L14-L26
 
 
 ### Parse Input ###
