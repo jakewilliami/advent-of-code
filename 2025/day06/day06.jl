@@ -1,259 +1,180 @@
-# Description: what was the problem; how did I solve it; and (optionally)
-# any thoughts on the problem or how I did.
-
-#  ]add ~/projects/AdventOfCode.jl Statistics LinearAlgebra Combinatorics DataStructures StatsBase IntervalSets OrderedCollections MultidimensionalTools
-# using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-# using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
-# using MultidimensionalTools
+# Today, we are given a matrix of integers, but the last row of the matrix
+# denotes an operation with which to apply to each column.
+#
+# In part one, we do simply that: for each column, we apply the operation
+# to each element in the column.  This will produce a reduced, single row
+# of columns with operations applied.  We sum the results.
+#
+# Part two was more tricky.  Even though the matrix was made up of distinct
+# columns, the spacing around the numbers were arbitrary (i.e., they were not
+# left nor right aligned).  It turns out that we needed to read the numbers
+# from right to left, top to bottom.  For example, the column
+#     12
+#     6
+# Translates to the vector
+#     2
+#     16
+#
+# I misunderstood this part multiple times.  I thought they were talking about
+# significant bits (e.g., starting with the ones, then tens, and so on), so I
+# implemented that logic multiple times.  Then I reread it and realised they were
+# actually talking about the spacing in the puzzle input (which I had stripped
+# out).  After I understood the question, my first solution was very messy, but
+# got the right answer.  I then spent a much longer time trying to clean up
+# the solution, using fewer temporary objects and essentially trying to get
+# it all in one pass.  Once I got the row/colum index logic right, this was
+# simple, and quite efficient.
+#
+# Similar to yesterday, I wouldn't call the problem hard, neccessarily.  It is
+# just not an algorithm I've ever had to write, so it took a good amount of thinking
+# to get it functional.  Overall, a pretty fun day.
 
 
 ### Parse Input ###
 
+const Operation = Function  # Union{typeof(+), typeof(*)}
+const OPS = Dict{Char, Operation}('+' => +, '*' => *)
+
 function parse_input(input_file::String)
-    # M = readlines_into_char_matrix(input_file)
-    # S = strip(read(input_file, String))
-    L = strip.(readlines(input_file))
-    A = [only(x) for x in split(last(L))]
-    L = [[parse(Int, x) for x in split(l)] for l in L[1:end-1]]
-    M = Matrix{Int}(undef, length(L), length(L[1]))
-    for ri in 1:length(L)
-        r = L[ri]
-        for ci in 1:length(r)
-            c = r[ci]
-            M[ri, ci] = c
+    L = readlines(input_file)
+
+    # Operators are at the bottom of the array
+    A = Operation[OPS[only(x)] for x in split(last(L))]
+
+    # Now we parse the main matrix
+    nr, nc = length(L) - 1, length(A)
+    M = Matrix{Int}(undef, nr, nc)
+
+    for rowᵢ in 1:nr
+        row = split(L[rowᵢ])
+        for colᵢ in 1:nc
+            M[rowᵢ, colᵢ] = parse(Int, row[colᵢ])
         end
     end
-    # L = get_integers.(L)
-    return M, A
+
+    # Return the interpretted matrix, column-wise operators, and raw lines
+    return M, A, L
 end
 
 
 ### Part 1 ###
 
-function part1(data)
-    M, A = data
-    r = 0
-    for i in 1:length(A)
-        c = M[:, i]
-        e = A[i]
-        if e == '*'
-            r += prod(c)
-        elseif e == '+'
-            r += sum(c)
-        end
+function apply_ops_across_cols(M::Matrix{Int}, ops::Vector{Operation})
+    @assert size(M, 2) == length(ops)
+
+    return sum(enumerate(eachcol(M))) do (i, col)
+        reduce(ops[i], col)
     end
-    r
+end
+
+function part1(data)
+    M, ops, _ = data
+    return apply_ops_across_cols(M, ops)
 end
 
 
 ### Part 2 ###
 
-function apply_pad(v0, fnc)
-    v = deepcopy(v0)
-    n = maximum(length, v)
-    v2 = []
-    for i in 1:length(v)
-        d = v[i]
-        println("  $d")
-        for i in 1:n - length(d)
-            # if fnc == '*'
-                # push!(d, 0)
-            # elseif fnc == '+'
-            println("    pushing")
-                pushfirst!(d, 0)
-            # end
+const IDENTITIES = Dict{Operation, Int}((+) => 0, (*) => 1)
+
+# Because we apply column-wise operations, we need the multiplicative or addititive
+# identity along each column, respective of the operations that are going to be made.
+# This means that if a number is blank and isn't filled in, the default value doesn't
+# mess with the maths when we go to compute the final result.
+function identity_matrix(similar_mat::Matrix{Int}, col_ops::Vector{Operation})
+    M = similar(similar_mat)
+    for colᵢ in 1:size(M, 2)
+        op = col_ops[colᵢ]
+        n = IDENTITIES[op]
+        M[:, colᵢ] = fill(n, size(M, 1))
+    end
+    return M
+end
+
+# "Cephalopod math is written right-to-left in columns. Each number is given in its
+# own column, with the most significant digit at the top and the least significant
+# digit at the bottom. (Problems are still separated with a column consisting only
+# of spaces, and the symbol at the bottom of the problem is still the operator to
+# use.)"
+#
+# This means that the following matrix:
+#     123  328   51  64
+#      45  64   387  23
+#       6  98   215  314
+#
+# Is instead written as:
+#     356    8  175    4
+#      24  248  581  431
+#       1  369   32  623
+#
+# Note the column-wise re-interpretation of each column.  The Cephalopods are very
+# peculiar when it comes to maths!
+function reinterpret_with_cephalopod_math(
+    M₀::Matrix{Int},
+    ops::Vector{Operation},
+    lines::Vector{String},
+)
+    # Exclude operators from raw data
+    pop!(lines)
+
+    # Instantiate output matrix and temp buffer
+    M = identity_matrix(M₀, ops)
+    io = IOBuffer()
+
+    # Starting from the left-most position in each line, construct numbers vertically
+    # for each row, ignoring spaces.
+    colᵢ, rowᵢ = size(M, 2), 1
+    for sᵢ in length(first(lines)):-1:1
+        # Construct number from the sᵢᵗʰ column of the input
+        for line in lines
+            c = line[sᵢ]
+            !isspace(c) && print(io, c)
         end
-        push!(v2, d)
-    end
-    return v2
-end
 
-function reint(v, fnc)
-    d0 = [digits(n) for n in v]
-    # d = deepcopy(d0)
-    d = apply_pad(d0, fnc)
-    @assert all(length(d[1]) == length(x) for x in d)
-    v2 = []
-    for i in 1:maximum(length, d)
-        #=local r
-        if fnc == '*'
-            r = 1
-        elseif fnc == '+'
-            r = 0
-        end=#
-        # println(d0[i])
-        # d2 = [x[i] for x in d]
-        d2 = reverse([x[i] for x in d if i ∈ 1:length(x)])
-        # d2 = reverse([x[i] for x in d])
-        # println(d2)
-        push!(v2, parse(Int, join(d2)))
-    end
-    v2
-end
-
-# similar to yesterday, not particularly hard but logic i haven't thought of really
-function newreint(v, fnc)
-    ns = [ndigits(x) for x in v]
-    ds = [digits(x) for x in v]
-    # v2 = [[] for _ in v]
-    v2 = []
-
-    for i in 1:maximum(ns)
-        # nd = ns[i]
-        #=t = []
-        if i <= nd
-            for j in 1:length(v)
-                x = ds[j][i]
-                push!(t, x)
-            end
+        # Extract the number from buffer and parse it as an integer
+        #
+        # NOTE: if the string is empty then we've just tried passing a blank
+        # column separator, which is necessarily just spaces.  If so, we need
+        # to shift the column index by one, as we have finished with this
+        # column.
+        #
+        # I tried for a long time just skipping this condition, and doing the
+        # column shift later:
+        #     colᵢ -= iszero(mod(rowᵢ, size(M, 1)))
+        #
+        # But this didn't work for some reason.
+        s = String(take!(io))
+        if isempty(s)
+            colᵢ -= 1
+            continue
         end
-        push!(v2, t)=#
-        #=for j in 1:length(v)
-            nd = ns[j]
-            if i <= nd
-                push!(v2[j], ds[j][i])
-            end
-        end=#
-        t = [x[i] for x in ds if i ∈ 1:length(x)]
-        push!(v2, t)
+
+        n = parse(Int, s)
+
+        # Set parsed number from this column in the matrix
+        M[rowᵢ, colᵢ] = n
+
+        # Increment row index
+        rowᵢ = mod1(rowᵢ + 1, size(M, 1))
     end
-    v2
-end
 
-function part20(data)
-    M, A = data
-    r = 0
-    for i in length(A):-1:1
-        c = M[:, i]
-        fnc = A[i]
-        # println(reint(c, fnc))
-        # new_c = reint(c, fnc)
-        new_c = newreint(c, fnc)
-        println(new_c)
-        # if fnc == '*'
-            # r += prod(new_c)
-        # elseif fnc == '+'
-            # r += sum(new_c)
-        # end
-    end
-    r
-end
-
-function new_parse_input(input_file::String)
-    L = readlines(input_file)
-    A = [only(x) for x in split(last(L))]
-
-    # M = []
-    # L2 = []
-    # for l in L[1:end-1]
-        # a = split(l, ' ')
-        # push!(L2, a)
-    # end
-
-    #=L = [[parse(Int, x) for x in split(l)] for l in L[1:end-1]]
-    M = Matrix{Int}(undef, length(L), length(L[1]))
-    for ri in 1:length(L)
-        r = L[ri]
-        for ci in 1:length(r)
-            c = r[ci]
-            M[ri, ci] = c
-        end
-    end
-    # L = get_integers.(L)
-    return M, A=#
-
-    # return L2, A
-    return L, A
+    return M
 end
 
 function part2(data)
-    lines, ops = data
-    lines = lines[1:end-1]
-    @assert all(length(lines[1]) == length(l) for l in lines)
-    @assert all(length(split(lines[1])) == length(split(l)) for l in lines)
-
-    ncols = length(split(lines[1]))
-    ncols = length(lines[1])
-    nrows = length(lines)
-    v = []
-    ds = []
-
-    wi = 1
-    for ci in ncols:-1:1
-        # check if all spaces - if so, we increment
-        if all(isspace(l[ci]) for l in lines)
-            # push!(v, ds)
-            # empty!(ds)
-            wi += 1
-        end
-
-        # for ri in 1:length()
-        # end
-        # println(ci)
-        s = ""
-        for l in lines
-            c = l[ci]
-            # println("  '$c'")
-            if isspace(c)
-                continue
-            end
-            # push!(ds, c)
-            s *= c
-        end
-        # push!(v, s)
-        # empty!(ds)
-        push!(v, s)
-    end
-
-    v2 = []
-    i = 1
-    while i <= length(v)
-        t = []
-        while i <= length(v) && !isempty(v[i])
-            push!(t, v[i])
-            i += 1
-        end
-        push!(v2, t)
-        i += 1
-    end
-
-    # println(v2)
-    # lines
-
-    v2 = [[parse(Int, x) for x in d] for d in v2]
-    r = 0
-    for (i, v) in enumerate(reverse(v2))
-        fnc = ops[i]
-        # println(v)
-        if fnc == '*'
-            # println("  ", prod(v))
-            r += prod(v)
-        elseif fnc == '+'
-            # println("  ", sum(v))
-            r += sum(v)
-        end
-    end
-    r
+    M₀, ops, lines = deepcopy(data)
+    M = reinterpret_with_cephalopod_math(M₀, ops, lines)
+    return apply_ops_across_cols(M, ops)
 end
 
 
 ### Main ###
 
 function main()
-    data = new_parse_input("data06.txt")
-    p1data = parse_input("data06.txt")
-    # data = new_parse_input("data06.test.txt")
-    # println(data)
+    data = parse_input("data06.txt")
 
     # Part 1
-    part1_solution = part1(p1data)
+    part1_solution = part1(data)
     @assert part1_solution == 4693419406682
     println("Part 1: $part1_solution")
 
