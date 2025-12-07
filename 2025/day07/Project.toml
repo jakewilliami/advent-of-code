@@ -1,0 +1,7 @@
+[deps]
+AdventOfCode = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
+DataStructures = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
+Memoization = "6fafb56a-5788-4b4e-91ca-c0cea6611c73"
+
+[sources]
+AdventOfCode = {rev = "master", url = "https://github.com/jakewilliami/AdventOfCode.jl"}
