@@ -7,6 +7,6 @@ project_hash = "16f11d191085667d33b52c44cdc85a485eaefea3"
 [[deps.AdventOfCode]]
 git-tree-sha1 = "92113d2b7cc189b887098a1d0657b58d23cf4b47"
 repo-rev = "master"
-repo-url = "/Users/jakeireland/projects/AdventOfCode.jl"
+repo-url = "https://github.com/jakewilliami/AdventOfCode.jl"
 uuid = "12c762d1-ec83-4627-b0f9-c32bfcd79ad0"
 version = "0.6.3"
