@@ -1,79 +1,39 @@
-# I'm ashamed to say that this might very well be the messiest solution I've ever written
-# I was in too deep and just needed to get it running without much consideration for efficiency
-
 # Description: what was the problem; how did I solve it; and (optionally)
 # any thoughts on the problem or how I did.
 
-# ]add https://github.com/jakewilliami/AdventOfCode.jl Statistics LinearAlgebra Combinatorics DataStructures StatsBase IntervalSets OrderedCollections MultidimensionalTools  # TODO: IterTools, ProgressMeter, BenchmarkTools, Memoization
-# using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using ProgressMeter
-using Base.Iterators
-# using Statistics
-using LinearAlgebra # needed
-# using Combinatorics
-# using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
-# using MultidimensionalTools
+using LinearAlgebra
 
 
 ### Parse Input ###
 
 const Index = CartesianIndex
+const Circuit = Set{Index}
 
 function parse_input(input_file::String)
-    # M = readlines_into_char_matrix(input_file)
-    # S = strip(read(input_file, String))
     L = strip.(readlines(input_file))
-    L = [parse.(Int, split(l, ',')) for l in L]
-    # TODO: is this right order?
-    return [CartesianIndex(a, b, c) for (a, b, c) in L]
-    # L = get_integers.(L)
-    return L
+    return Index[Index(parse.(Int, split(line, ','))...) for line in L]
 end
 
 
 ### Part 1 ###
 
-struct ST  # set tuple
-    p::Set{Index}
+# TODO: order all pairs (junctions) by distance
+# TODO: JP used UF (union find) https://www.youtube.com/watch?v=Gd4-LOBfA88
+
+struct Junction  # set tuple
+    p::Tuple{Index,Index}
 end
 
-ST(a::Index, b::Index) = ST(Set{Index}((a, b)))
-Base.iterate(s::ST) = Base.iterate(sort(collect(s.p)))
-Base.iterate(s::ST, state) = Base.iterate(sort(collect(s.p)), state)
-Base.:(==)(a::ST, b::ST) = a.p == b.p
+Junction(a::Index, b::Index) = Junction(Tuple(sort([a, b])))
+Base.iterate(s::Junction) = Base.iterate(s.p)
+Base.iterate(s::Junction, state) = Base.iterate(s.p, state)
+Base.:(==)(a::Junction, b::Junction) = a.p == b.p
 
-eucl(i, j) = norm(Tuple(i - j))
-manh(i, j) = norm(Tuple(i - j), 1)
+# Compute Euclidean distance using LinearAlgebra
+distance(i::Index, j::Index) = norm(Tuple(i - j))
 
-function find_closest(data, i)
-    @assert !isempty(data)
-    best = typemax(Float64)
-    bestmatch = nothing
-    for j in data
-        j == i && continue
-        d = eucl(i, j)
-        if d < best
-            bestmatch = j
-        end
-    end
-    @assert !isnothing(bestmatch)
-    return bestmatch
-end
-
-function find_circuit(circuits, i)
-    for (k, circuit) in enumerate(circuits)
-        # println(any(i == j for j in circuit), i, circuit)
-        if any(i == j for j in circuit)
-            return k
-        end
-    end
-    return nothing
-end
-
-function find_circuit(circuits, i, j)
+# Find index of circuit to which Index `i` belongs (greedy algorithm; findfirst)
+function find_circuit(circuits::Vector{Circuit}, i::Index, j::Index)
     # first check if both indices are in separate circuits; then we need to join the circuit
     found = [false, false]
     ks = [0, 0]
@@ -104,120 +64,53 @@ function find_circuit(circuits, i, j)
         return ks
     end
 
-    #=for (k, circuit) in enumerate(circuits)
-        if any(i == x || j == x for x in circuit)
-            return k
-        end
-    end
-    return nothing=#
     return nothing
 end
 
-function distances(data)
-    D = Dict{ST, Float64}()
+function precompute_distances(data::Vector{Index})
+    D = Dict{Junction, Float64}()
+
     for i in 1:length(data)
         for j in i+1:length(data)
             a, b = data[i], data[j]
-            d = eucl(a, b)
-            D[ST(a, b)] = d
+            d = distance(a, b)
+            D[Junction(a, b)] = d
         end
     end
+
     return D
 end
 
-function part1(data)
+function init(data::Vector{Index}, sorted::Vector{Junction})
     data = deepcopy(data)
-    res = []
-    circuits = []
-    dists = distances(data)
-    n1,n2 = 1000, 3
-    p = false
-    smallest = sort([(i, k, v) for (i, (k, v)) in enumerate(dists)], by = x -> last(x))
+    circuits = Circuit[]
 
-    #=for (ind, i) in enumerate(data)
-        j = find_closest(data, i)
-        k = find_circuit(circuits, j)
-        if isnothing(k)
-            # then we have a new circuit
-            push!(circuits, [i, j])
-        else
-            push!(circuits[k], j)
-        end
-    end=#
-    for (_ind, (i, j), d) in smallest[1:n1]
-        p && println("$d $i $j")
-        #=k = find_circuit(circuits, i)
-        if isnothing(k)
-            # then we have a new circuit
-            k2 = find_circuit(circuits, j)
-            if isnothing(k2)
-            # s = Set{Index}()
-            # push!(s, i); push!(s, j)
-            # push!(circuits, s)
-                push!(circuits, Set{Index}((i, j)))
-            else
-                push!(circuits[k2], i)
-                push!(circuits[k2], j)
-            end
-        else
-            k2 = find_circuit(circuits, j)
-            if isnothing(k2)
-                push!(circuits, Set{Index}((i, j)))
-            else
-                push!(circuits[k], i)
-                push!(circuits[k], j)
-            end
-        end=#
-        k = find_circuit(circuits, i, j)
-        if isnothing(k)
-            push!(circuits, Set{Index}((i, j)))
-        else
-            if k isa Int
-                push!(circuits[k], i)
-                push!(circuits[k], j)
-            else
-                @assert k isa Vector{Int} typeof(k)
-                k1, k2 = k
-                for x in circuits[k2]
-                    push!(circuits[k1], x)
+    # Memoise the index of the circuit that a junction (pair of indices) exists
+    mem = Dict{Union{Junction, Index}, Int}()
+    # mem = Dict{Index, Int}()
+
+    # initially join closest 1000 smallest (TODO: document)
+    # TODO: document
+    for s in sorted[1:1000]
+        i, j = s
+
+        #=if !haskey(mem, s)
+            # two options: fresh pair, or individuals and need to join circuits
+            if haskey(mem, i) && haskey(mem, j)
+                k1, k2 = mem[i], mem[j]
+                if k1 == k2
                 end
-                deleteat!(circuits, k2)
-                # append!(circuits[k1], circuits[k2])
+            else
+                push!(circuits, Set{Index}((i, j)))
+                mem[s] = length(circuits)
             end
+            continue
         end
-        p && println("    !! $k ($(countmap(map(length, circuits)))): $circuits\n")
-        # println("  $circuits")
-    end
 
-    for (_ind, (i, j), _d) in smallest[n1+1:end]
-        # println("@@ $i $j")
-        # push!(circuits, Set{Index}((i, j)))
-    end
+        k = mem[s]
+        push!(circuits[k], i)
+        push!(circuits[k], j)=#
 
-    for i in data
-        if !any(i ∈ c for c in circuits)
-            push!(circuits, Set{Index}((i,)))
-        end
-    end
-
-    # return circuits
-     return prod(sort(map(length, circuits), rev=true)[1:n2])
-end
-
-
-### Part 2 ###
-
-function init(data, n1)
-    data = deepcopy(data)
-    res = []
-    circuits = []
-    dists = distances(data)
-    n2 = 3
-    p = false
-    smallest = sort([(i, k, v) for (i, (k, v)) in enumerate(dists)], by = x -> last(x))
-
-    for (_ind, (i, j), d) in smallest[1:n1]
-        p && println("$d $i $j")
         k = find_circuit(circuits, i, j)
         if isnothing(k)
             push!(circuits, Set{Index}((i, j)))
@@ -234,9 +127,9 @@ function init(data, n1)
                 deleteat!(circuits, k2)
             end
         end
-        p && println("    !! $k ($(countmap(map(length, circuits)))): $circuits\n")
     end
 
+    # fill in the remaining (TODO: document)
     for i in data
         if !any(i ∈ c for c in circuits)
             push!(circuits, Set{Index}((i,)))
@@ -246,24 +139,16 @@ function init(data, n1)
     return circuits
 end
 
-function flt(cs)
-    a = []
-    for x in Base.Iterators.map(sort ∘ collect, cs)
-        for v in x
-            push!(a, v)
-        end
-    end
-    return a
+function part1(data::Vector{Index}, sorted::Vector{Junction})
+    circuits = init(data, sorted)
+    return prod(sort(map(length, circuits), rev=true)[1:3])
 end
-# flt(cs) = Base.Iterators.flatten(Base.Iterators.map(sort ∘ collect, cs))
 
-# flat = flt(circuits)
-# dists = distances(flat)
-function next_joinable_circuits(circuits)
-    dists = DISTS
-    smallest = SMALLEST
 
-    for s in smallest
+### Part 2 ###
+
+function find_nearest_joinable_circuits(circuits::Vector{Circuit}, sorted::Vector{Junction})
+    for s in sorted
         i, j = s
         same_circuit = false
         for circuit in circuits
@@ -277,73 +162,21 @@ function next_joinable_circuits(circuits)
         end
     end
 
-    # find the smallest distance between two junctions in different circuits
-    #
-    # to do this, we should remove connections within each circuit
-    # println("start")
-    is = []
-    for circuit in circuits
-        circuit = sort(collect(circuit))
-        for i in 1:length(circuit)
-            for j in i+1:length(circuit)
-                a, b = circuit[i], circuit[j]
-                s = ST(a, b)
-                # if s ∉ is
-                push!(is, s)
-                # end
-            end
-        end
-    end
-    # println("stop")
-
-    for i in smallest
-        if i ∉ is
-            return i
-        end
-    end
     error("unreachable")
-
-    smallest = [i for i in smallest if i ∉ is]
-    return smallest[1]
-
-    to_delete = []
-    for i in is
-        # println(i)
-        # println(smallest)
-        j = findfirst(==(i), smallest)
-        @assert !isnothing(j)
-        push!(to_delete, j)
-    end
-    deleteat!(smallest, sort(unique(to_delete)))
-
-    return smallest[1]
-
-    return
-    for i in 1:length(circuits)
-        for j in i+1:length(circuits)
-            ca, cb = circuits[i], circuits[j]
-            for a in ca
-                for b in cb
-                    # if
-                end
-            end
-        end
-    end
 end
 
-# flat = flt(circuits)
-# dists = distances(flat)
-# smallest = sort([(k, v) for (k, v) in dists], by = x -> last(x))
-# smallest = [x for (x, _) in smallest]
-function join_two!(circuits, m = false)
-    dists = DISTS
-    smallest = SMALLEST
+# Find index of circuit to which Index `i` belongs (greedy algorithm; findfirst)
+function find_circuit(circuits::Vector{Circuit}, i::Index)
+    for (k, circuit) in enumerate(circuits)
+        any(i == j for j in circuit) && return k
+    end
+    return nothing
+end
 
+function join_nearest_two_circuits!(circuits::Vector{Circuit}, sorted::Vector{Junction})
     # step 1: find the smallest distance between two junctions that don't share
     # the same circuit
-    n = next_joinable_circuits(circuits)
-    m && return n
-    i, j = n
+    i, j = find_nearest_joinable_circuits(circuits, sorted)
 
     # step 2: find thier circuits and join
     k1, k2 = find_circuit(circuits, i), find_circuit(circuits, j)
@@ -357,85 +190,37 @@ function join_two!(circuits, m = false)
     return circuits
 end
 
-function join_one_pass!(circuits, n1)
-    if length(circuits) == 1
-        error("hihi")
-    end
-
-    # find the ones that are still waiting to be placed into a group
-
-
-    dists = distances(data)
-    smallest = sort([k for (k, v) in dists], by = x -> last(x))
-    flat = flt(circuits)
-    # for circuit in flat
-    for circuit in circuits
-        for i in circuit
-
-        end
-    end
-end
-
-function part2(data)
+function part2(data::Vector{Index}, sorted::Vector{Junction})
     data = deepcopy(data)
-    prev_data = deepcopy(data)
     n1 = 10
-    # circuits = join_one_pass!(data, n1)
-    # data = deepcopy(data)
-    # res = []
-    # dists = distances(data)
-    # n2 = 3
-    # p = false
-    # smallest = sort([(i, k, v) for (i, (k, v)) in enumerate(dists)], by = x -> last(x))
-    # _, (i, j), _ = smallest[end]
-    # Tuple(i)[1] * Tuple(j)[1]
-    circuits = init(data, n1)
-    prev_circuits = deepcopy(circuits) # Set?
-    N = length(circuits)
-    # println(length(circuits))
-    # p = Progress(N)
+    circuits = init(data, sorted)
 
-    join_two!(circuits)
-    # next!(p)
+    join_nearest_two_circuits!(circuits, sorted)
     while length(circuits) > 2
-        # println("here")
-        # prev_circuits = deepcopy(circuits)
-        join_two!(circuits)
-        # next!(p)
+        join_nearest_two_circuits!(circuits, sorted)
     end
 
-    a, b = join_two!(circuits, true)
-    # next!(p)
-    # join_one_pass!(circuits, n1)
-
-    # finish!(p)
-    Tuple(a)[1]*Tuple(b)[1]
+    i, j = find_nearest_joinable_circuits(circuits, sorted)
+    return first(Tuple(i)) * first(Tuple(j))
 end
-
-#=function part2(data)
-    circuits = init(data, 10)
-
-end=#
 
 
 ### Main ###
-DATA = parse_input("data08.txt")
-# DATA = parse_input("data08.test.txt")
-DISTS = distances(DATA)
-SMALLEST = sort([(k, v) for (k, v) in DISTS], by = x -> last(x))
-SMALLEST = [x for (x, _) in SMALLEST]
 
 function main()
-    # println(data)
-    data = deepcopy(DATA)
+    data = parse_input("data08.txt")
+    # data = parse_input("data08.test.txt")
+    distances = precompute_distances(data)
+    sorted = sort([(k, v) for (k, v) in distances], by = x -> last(x))
+    sorted = Junction[x for (x, _) in sorted]
 
     # Part 1
-    part1_solution = part1(data)
+    part1_solution = part1(data, sorted)
     @assert part1_solution == 97384
     println("Part 1: $part1_solution")
 
     # Part 2
-    part2_solution = part2(data)
+    part2_solution = part2(data, sorted)
     @assert part2_solution == 9003685096
     println("Part 2: $part2_solution")
 end
