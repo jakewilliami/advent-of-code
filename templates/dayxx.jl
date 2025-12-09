@@ -1,17 +1,17 @@
 # Description: what was the problem; how did I solve it; and (optionally)
 # any thoughts on the problem or how I did.
 
-#  ]add ~/projects/AdventOfCode.jl Statistics LinearAlgebra Combinatorics DataStructures StatsBase IntervalSets OrderedCollections MultidimensionalTools
+# ]add https://github.com/jakewilliami/AdventOfCode.jl Statistics LinearAlgebra Combinatorics DataStructures StatsBase IntervalSets OrderedCollections MultidimensionalTools  # TODO: IterTools, ProgressMeter, BenchmarkTools, Memoization
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
-# using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
-# using MultidimensionalTools
+using Base.Iterators
+using Statistics
+using LinearAlgebra
+using Combinatorics
+using DataStructures
+using StatsBase
+using IntervalSets
+using OrderedCollections
+using MultidimensionalTools
 
 
 ### Parse Input ###
@@ -40,8 +40,8 @@ end
 ### Main ###
 
 function main()
-    data = parse_input("data1.txt")
-    data = parse_input("data1.test.txt")
+    data = parse_input("data0.txt")
+    data = parse_input("data0.test.txt")
     # println(data)
 
     # Part 1
