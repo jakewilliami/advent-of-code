@@ -1,5 +1,15 @@
-# Description: what was the problem; how did I solve it; and (optionally)
-# any thoughts on the problem or how I did.
+# Here, we are given a grid.  We start at the top.  We shine a beam of light down
+# the grid, and each time we reach a splitter (^), this splits the beam into two.
+#
+# In part 1, we are asked to count the number of times the beam is split.  This is
+# a simple BFS problem that we can do easily.
+#
+# Part 2 is harder.  We have to count all possible paths for the beam to take, when
+# it is split.  We use a recursive dynamic programming solution.
+#
+# This was a straight forward day in a sense, but part 2 was non-trivial and took me
+# a while to come to a recursive solution, because I tried to do it iteratively.  It
+# ends up being much simpler using recursion.
 
 using AdventOfCode.Parsing, AdventOfCode.Multidimensional
 using Memoization
@@ -52,14 +62,21 @@ end
 
 
 ### Part 2 ###
-
+# Dynamic programming solution from JP:
+#   youtube.com/watch?v=hiNMPy_VvHY
+#   github.com/jonathanpaulson/AdventOfCode/blob/826497f7/2025/7.py#L16-L23
 @memoize function score(i::Index, M::Matrix{Char})
+    # Base case: the beam is out of bounds and cannot go further, so we
+    # have reached the end of the path.  We count this as one path.
     j = i + INDEX_DOWN
     hasindex(M, j) || return 1
 
+    # Splitter case: the beam has been split; add up the resulting possible
+    # paths from either side of the splitter.
     M[j] == '^' &&
         return score(j + INDEX_LEFT, M) + score(j + INDEX_RIGHT, M)
 
+    # Trivial case: no splitter is found, so advance the beam downward
     return score(j, M)
 end
 
