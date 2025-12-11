@@ -97,7 +97,7 @@ function solve1(machine::Machine)
     start == target && return 0
 
     # Set up data structures for BFS
-    Q, seen = Queue{Tuple{BitVector, Int}}(), Set{BitVector}()
+    Q, seen, used = Queue{Tuple{BitVector, Int}}(), Set{BitVector}(), Set{Wiring}()
     push!(Q, (start, 0))
     push!(seen, start)
 
@@ -108,6 +108,10 @@ function solve1(machine::Machine)
 
         # Explore the different buttons' effects on the current state
         for (i, button) in enumerate(machine.buttons)
+            # Small optimisation: the problem states that each button need
+            # not be used more than once for part 1
+            button ∈ used && continue
+
             # Perform the operation for the present button
             new_state = copy(current_state)
             apply_button!(new_state, button)
