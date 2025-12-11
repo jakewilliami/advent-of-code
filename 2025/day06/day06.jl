@@ -28,6 +28,15 @@
 # Similar to yesterday, I wouldn't call the problem hard, neccessarily.  It is
 # just not an algorithm I've ever had to write, so it took a good amount of thinking
 # to get it functional.  Overall, a pretty fun day.
+#
+# Since my initial solution to part 2 [1], I cleaned up the solution by simply
+# transposing the lines so that we can easily read it from the right to left.
+# This probably doesn't make it more efficient; it simply makes the string/index
+# maths easier to read/understand.  I got the idea for this solution from the
+# comments on JP's solution video [2].
+#
+# [1]: github.com/jakewilliami/advent-of-code/blob/94911b2a/2025/day06/day06.jl#L112-L162
+# [2]: https://www.youtube.com/watch?v=UdCImAUqD8E
 
 
 ### Parse Input ###
@@ -117,44 +126,52 @@ function reinterpret_with_cephalopod_math(
     # Exclude operators from raw data
     pop!(lines)
 
-    # Instantiate output matrix and temp buffer
+    # Adapted from:
+    #   github.com/jakewilliami/AdventOfCode.jl/blob/e9b8b50a/src/parsing/parsing.jl#L93-L95
+    _lines_into_matrix(lines) =
+        reduce(vcat, permutedims(collect(s)) for s in lines)
+
+    # Here, we simply transpose the lines of the matrix so that we can read in the
+    # same was that Cephlapods do.
+    #
+    # For instance, given the input lines:
+    #     3-element Vector{SubString{String}}:
+    #      "123 328  51 64 "
+    #      " 45 64  387 23 "
+    #      "  6 98  215 314"
+    #
+    # We transpose them to look like this:
+    #     15-element Vector{String}:
+    #      "  4"
+    #      "431"
+    #      "623"
+    #      "   "
+    #      "175"
+    #      "581"
+    #      " 32"
+    #      "   "
+    #      "8  "
+    #      "248"
+    #      "369"
+    #      "   "
+    #      "356"
+    #      "24 "
+    #      "1  "
+    linesᵀ = reverse(join.(eachrow(permutedims(_lines_into_matrix(lines)))))
+
+    # Now you can trivially reconstruct the matrix in the correct order
     M = identity_matrix(M₀, ops)
-    io = IOBuffer()
-
-    # Starting from the left-most position in each line, construct numbers vertically
-    # for each row, ignoring spaces.
     colᵢ, rowᵢ = size(M, 2), 1
-    for sᵢ in length(first(lines)):-1:1
-        # Construct number from the sᵢᵗʰ column of the input
-        for line in lines
-            c = line[sᵢ]
-            !isspace(c) && print(io, c)
-        end
 
-        # Extract the number from buffer and parse it as an integer
-        #
-        # NOTE: if the string is empty then we've just tried passing a blank
-        # column separator, which is necessarily just spaces.  If so, we need
-        # to shift the column index by one, as we have finished with this
-        # column.
-        #
-        # I tried for a long time just skipping this condition, and doing the
-        # column shift later:
-        #     colᵢ -= iszero(mod(rowᵢ, size(M, 1)))
-        #
-        # But this didn't work for some reason.
-        s = String(take!(io))
-        if isempty(s)
+    for line in linesᵀ
+        # If we have reached a blank line then we need to shift column left
+        if all(isspace, line)
             colᵢ -= 1
             continue
         end
 
-        n = parse(Int, s)
-
-        # Set parsed number from this column in the matrix
-        M[rowᵢ, colᵢ] = n
-
-        # Increment row index
+        # Otherwise, we simply parse each number in the matrix
+        M[rowᵢ, colᵢ] = parse(Int, line)
         rowᵢ = mod1(rowᵢ + 1, size(M, 1))
     end
 
