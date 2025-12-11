@@ -1,48 +1,52 @@
-# Description: what was the problem; how did I solve it; and (optionally)
-# any thoughts on the problem or how I did.
+# The input is a list of pairs; mappings.  The keys to the pairs are names, and
+# the values are potentially many names that the key connects to.  Parsing this
+# constructs a graph of nodes with the mappings defining edges.
+#
+# In part 1, we have to start at the key "you" and count how many paths there
+# are to the key (or keys) "out".  This is trivially solvable with a BFS.
+#
+# In part 2, we have to find the number of paths to get from "svr" to "out", but
+# you have to go through "dac" and "fft" nodes, first, in any order.  We use
+# a recursive dynamic programming solution, very similar to our part 2 solution
+# for day 7 [1].
+#
+# Important note: these all work because there are no cycles, so the input is
+# a DAG.
+#
+# [1]: https://github.com/jakewilliami/advent-of-code/blob/2d3a6ad4/2025/day07/day07.jl
 
-# ]add https://github.com/jakewilliami/AdventOfCode.jl Statistics LinearAlgebra Combinatorics DataStructures StatsBase IntervalSets OrderedCollections MultidimensionalTools  # TODO: IterTools, ProgressMeter, BenchmarkTools, Memoization
-# using AdventOfCode.Parsing, AdventOfCode.Multidimensional
-using Memoization
-# using BenchmarkTools
-# using Base.Iterators
-# using Statistics
-# using LinearAlgebra
-# using Combinatorics
 using DataStructures
-# using StatsBase
-# using IntervalSets
-# using OrderedCollections
-# using MultidimensionalTools
+using Memoization
 
 
 ### Parse Input ###
 
 function parse_input(input_file::String)
-    # M = readlines_into_char_matrix(input_file)
-    # S = strip(read(input_file, String))
-    L = strip.(readlines(input_file))
-    L = [(String(a), String.(split(b))) for (a, b) in split.(L, ": ")]
-    return Dict{String, Vector{String}}(a => b for (a, b) in L)
-    return L
-    # L = get_integers.(L)
-    return L
+    D = Dict{String, Vector{String}}()
+
+    for line in eachline(input_file)
+        a, b = split(line, ": ")
+        D[a] = split(b)
+    end
+
+    return D
 end
 
 
 ### Part 1 ###
 
-# Each line gives the name of a device followed by a list of the devices to which its outputs are attached
+const Map = Dict{String, Vector{String}}
+
 function part1(data)
-    count = 0
+    count, start, stop = 0, "you", "out"
 
     Q = Queue{String}()
-    enqueue!(Q, "you")
+    enqueue!(Q, start)
 
     while !isempty(Q)
         s = dequeue!(Q)
 
-        if s == "out"
+        if s == stop
             count += 1
             continue
         end
@@ -58,111 +62,19 @@ end
 
 ### Part 2 ###
 
-function count_paths_with(data, start, goal, req1, req2)
-    count = 0
-
-    # queue holds (node, seen_req1::Bool, seen_req2::Bool)
-    Q = Queue{Tuple{String,Bool,Bool}}()
-    enqueue!(Q, (start, false, false))
-
-    while !isempty(Q)
-        (node, seen1, seen2) = dequeue!(Q)
-
-        # update seen state
-        seen1 |= (node == req1)
-        seen2 |= (node == req2)
-
-        # if we reached b AND visited both
-        if node == goal
-            count += seen1 && seen2
-            continue
-        end
-
-        # continue exploring
-        for nxt in data[node]
-            enqueue!(Q, (nxt, seen1, seen2))
-        end
-    end
-
-    return count
-end
-
-# "a topological order is a linear ordering of nodes where every edge u -> v goes from earlier in the order to later"
-function topo_order(data)
-    initial_state = Dict(n => 0 for n in keys(data))
-    indeg = Accumulator{String, Int}(initial_state)
-    for v in Iterators.flatten(values(data))
-    # for (_, outs) in data
-        # for v in outs
-            inc!(indeg, v)
-            # indeg[v] = get(indeg, v, 0) + 1
-        # end
-    end
-
-    # println(indeg)
-    # for (n, d) in indeg
-        # println("$n $d")
-        # break
-    # end
-
-    Q = Queue{String}()
-    for (n, d) in indeg
-        iszero(d) && enqueue!(Q, n)
-    end
-
-    order = String[]
-
-    while !isempty(Q)
-        u = dequeue!(Q)
-        push!(order, u)
-        for v in get(data, u, String[])
-            dec!(indeg, v)
-            # indeg[v] -= 1
-            if iszero(indeg[v])
-                enqueue!(Q, v)
-            end
-        end
-    end
-
-    return order
-end
-
-function count_paths_from(data, topo, src)
-    # paths = Dict(n => 0 for n in keys(data))
-    paths = Accumulator{String, Int}()
-    # paths[src] = 1
-    inc!(paths, src)
-
-    # DP forward along topo order
-    for u in topo
-        for v in get(data, u, [])
-            # paths[v] += get(paths, u, [])
-            inc!(paths, v, paths[u])
-        end
-    end
-
-    return paths
-end
-
-function count_paths_through(data, a, b, c, d)
-    topo = topo_order(data)
-
-    # Paths starting at a, c, d
-    Pa = count_paths_from(data, topo, a)
-    Pc = count_paths_from(data, topo, c)
-    Pd = count_paths_from(data, topo, d)
-
-    case1 = Pa[c] * Pc[d] * Pd[b]   # a → c → d → b
-    case2 = Pa[d] * Pd[c] * Pc[b]   # a → d → c → b
-
-    return case1 + case2
-end
-
-
-# https://github.com/jonathanpaulson/AdventOfCode/blob/826497f7/2025/11.py#L21-L31
+# Really efficient dynamic programming solution from JP:
+#   youtube.com/watch?v=3c453AH14-g
+#   github.com/jonathanpaulson/AdventOfCode/blob/826497f7/2025/11.py#L21-L31
+#
+# The idea is to keep track of whether you have seen both intermediary nodes
+# or not, rather than the whole path, because you don't need any more information.
 @memoize function solve(s, data; dac=false, fft=false)
+    # Base case: we have reached the end of the path.  Return whether or not
+    # this path was valid.  If it is valid, we count it as one path.
     s == "out" && return dac && fft
-    sum(data[s]) do s′
+
+    # Recursive case: count up all possibilities from the next steps in the path.
+    return sum(data[s]) do s′
         solve(
             s′,
             data,
@@ -172,25 +84,13 @@ end
     end
 end
 
-function part2(data)
-    # start: svr
-    # stop: out
-    # visit also: dac and fft
-    # count_paths_with(data, "svr", "out", "dac", "fft")
-    count_paths_through(data, "svr", "out", "dac", "fft")
+part2(data::Map) = solve("svr", data)
 
-end
 
-function part22(data)
-    solve("svr", data)
-end
 ### Main ###
 
 function main()
     data = parse_input("data11.txt")
-    # data = parse_input("data11.test.txt")
-    # data = parse_input("data11.test2.txt")
-    # println(data)
 
     # Part 1
     part1_solution = part1(data)
@@ -201,9 +101,6 @@ function main()
     part2_solution = part2(data)
     @assert part2_solution == 296006754704850
     println("Part 2: $part2_solution")
-
-    # @show @benchmark part2($data)
-    # @benchmark part22($data)
 end
 
 main()
